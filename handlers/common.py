@@ -37,6 +37,7 @@ async def cmd_start(message: Message, state: FSMContext, bot: Bot):
 # ────────────────────────────────────────────────────────────
 @router.message(Command("admin"))
 async def cmd_admin(message: Message, state: FSMContext):
+    print(f"DEBUG /admin: message.from_user.id={message.from_user.id}, ADMIN_ID={ADMIN_ID}")
     if message.from_user.id != ADMIN_ID:
         await message.answer("⛔ У вас нет доступа к этому разделу.")
         return
