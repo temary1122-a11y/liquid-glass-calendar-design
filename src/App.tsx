@@ -18,16 +18,31 @@ export default function App() {
   useEffect(() => {
     // Инициализируем Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
+    console.log('=== Telegram WebApp Debug ===');
+    console.log('Telegram.WebApp exists:', !!tg);
+    console.log('Telegram.WebApp object:', tg);
+    console.log('initDataUnsafe:', tg?.initDataUnsafe);
+    console.log('initData:', tg?.initData);
+    console.log('user from initDataUnsafe:', tg?.initDataUnsafe?.user);
+    console.log('user from initData:', tg?.initDataUser);
+
     if (tg) {
       tg.ready();
       tg.expand();
     }
 
     // Получаем user_id из Telegram WebApp
-    if (tg?.initDataUnsafe?.user) {
-      const userId = tg.initDataUnsafe.user.id;
+    // Проверяем оба источника: initDataUnsafe и initData
+    const user = tg?.initDataUnsafe?.user || tg?.initDataUser;
+
+    if (user) {
+      const userId = user.id;
       const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
       const isAdminUser = userId === adminId;
+
+      console.log('User ID:', userId);
+      console.log('Admin ID:', adminId);
+      console.log('Is admin:', isAdminUser);
 
       setIsAdmin(isAdminUser);
       // Если не админ, сбрасываем view на client
@@ -45,6 +60,7 @@ export default function App() {
     } else {
       // Если Telegram WebApp недоступен или нет user - считаем клиентом
       // Это может быть если открыли в обычном браузере
+      console.log('No user data found, treating as client');
       setIsAdmin(false);
       setView('client');
 
