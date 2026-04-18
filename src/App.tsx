@@ -125,7 +125,7 @@ export default function App() {
 
                 {/* Instagram button */}
                 <a
-                  href={SOCIAL_LINKS.INSTAGRAM_LINK}
+                  href="https://www.instagram.com/your_lashes_simf?igsh=MTFvaHdscnIzbWF0Mw%3D%3D&utm_source=qr"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full p-3 liquid-glass-calendar rounded-xl hover:bg-white/50 transition-all duration-200 text-center"

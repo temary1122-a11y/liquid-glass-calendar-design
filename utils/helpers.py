@@ -86,6 +86,25 @@ def channel_booking_text(
     )
 
 
+def client_confirmation_text(day_date: str, slot_time: str) -> str:
+    """Текст подтверждения записи для клиента."""
+    # Форматируем дату в формат DD.MM
+    try:
+        from datetime import datetime
+        d = datetime.strptime(day_date, "%Y-%m-%d")
+        formatted_date = d.strftime("%d.%m")
+    except Exception:
+        formatted_date = day_date
+
+    return (
+        f"Записала 💌\n"
+        f"📆: {formatted_date}\n"
+        f"🟣: {slot_time}\n"
+        f"📎Адрес: Тихий переулок, 4\n"
+        f"🤩3 этаж, первая дверь справа 🤩"
+    )
+
+
 async def notify_admin(bot: Bot, text: str) -> None:
     """Отправляет сообщение администратору."""
     try:

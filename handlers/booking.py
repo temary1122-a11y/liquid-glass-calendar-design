@@ -32,6 +32,7 @@ from utils import (
     booking_text,
     admin_booking_notification,
     channel_booking_text,
+    client_confirmation_text,
     format_date_ru,
 )
 from utils.scheduler import schedule_reminder
@@ -269,14 +270,11 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
     await state.clear()
 
-    # ── Сообщение пользователю ───────────────────────────────
+    # ── Сообщение пользователю с новым форматом ───────────────
     await callback.message.edit_text(
-        booking_text(
-            client_name=data["client_name"],
-            phone=data["phone"],
+        client_confirmation_text(
             day_date=data["selected_date"],
             slot_time=data["selected_time"],
-            booking_id=booking_id,
         ),
         parse_mode="HTML",
         reply_markup=main_menu_kb()

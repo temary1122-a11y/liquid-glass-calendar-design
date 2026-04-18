@@ -79,7 +79,7 @@ export const SOCIAL_LINKS = {
   PRICES_POST_LINK: import.meta.env.VITE_PRICES_POST_LINK || 'https://t.me/lashessoto4ka/285',
 
   // Ссылка на Instagram
-  INSTAGRAM_LINK: import.meta.env.VITE_INSTAGRAM_LINK || 'https://instagram.com/yourusername',
+  INSTAGRAM_LINK: import.meta.env.VITE_INSTAGRAM_LINK || 'https://www.instagram.com/your_lashes_simf?igsh=MTFvaHdscnIzbWF0Mw%3D%3D&utm_source=qr',
 
   // Ссылка на портфолио
   PORTFOLIO_LINK: 'https://ru.pinterest.com/crystalwithluv/_created/',
