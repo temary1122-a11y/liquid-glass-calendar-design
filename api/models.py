@@ -1,5 +1,5 @@
 # ============================================================
-# api/models.py — Pydantic модели для API (Pydantic 1.x)
+# api/models.py — Pydantic модели для API (Pydantic 2.x)
 # ============================================================
 
 from pydantic import BaseModel, Field
