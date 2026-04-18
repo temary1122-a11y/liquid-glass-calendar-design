@@ -20,7 +20,6 @@ from database import (
 )
 from keyboards import (
     main_menu_kb,
-    subscription_check_kb,
     time_slots_kb,
     confirm_booking_kb,
     cancel_confirm_kb,
@@ -28,7 +27,6 @@ from keyboards import (
 )
 from keyboards.calendars import build_calendar
 from utils import (
-    check_subscription,
     notify_admin,
     post_to_schedule_channel,
     booking_text,
@@ -49,27 +47,8 @@ PHONE_RE = re.compile(r"^[\+\d][\d\s\-\(\)]{6,15}$")
 # ────────────────────────────────────────────────────────────
 @router.callback_query(F.data == "book_start")
 async def book_start(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    """Проверяем подписку, затем показываем календарь."""
+    """Начинаем запись - показываем календарь."""
     await callback.answer()
-
-    # Проверка подписки на канал
-    is_subscribed = await check_subscription(bot, callback.from_user.id, CHANNEL_ID)
-    if not is_subscribed:
-        try:
-            await callback.message.edit_text(
-                "📢 <b>Для записи необходимо подписаться на канал!</b>\n\n"
-                "После подписки нажмите кнопку «✅ Проверить подписку».",
-                parse_mode="HTML",
-                reply_markup=subscription_check_kb()
-            )
-        except Exception:
-            await callback.message.answer(
-                "📢 <b>Для записи необходимо подписаться на канал!</b>\n\n"
-                "После подписки нажмите кнопку «✅ Проверить подписку».",
-                parse_mode="HTML",
-                reply_markup=subscription_check_kb()
-            )
-        return
 
     # Проверка: нет ли уже активной записи
     if user_has_active_booking(callback.from_user.id):

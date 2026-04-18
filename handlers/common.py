@@ -9,8 +9,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 
 from config import PRICE_TEXT, CHANNEL_ID, ADMIN_ID, PRICES_POST_LINK
-from keyboards import main_menu_kb, subscription_check_kb, admin_menu_kb, back_to_main_kb
-from utils import check_subscription
+from keyboards import main_menu_kb, admin_menu_kb, back_to_main_kb
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -148,34 +147,6 @@ async def show_prices(callback: CallbackQuery):
             reply_markup=back_to_main_kb()
         )
         await callback.message.answer(PRICES_POST_LINK)
-
-
-# ────────────────────────────────────────────────────────────
-# Проверка подписки на канал
-# ────────────────────────────────────────────────────────────
-@router.callback_query(F.data == "check_subscription")
-async def check_sub_callback(callback: CallbackQuery, bot: Bot):
-    """Повторная проверка подписки после нажатия кнопки."""
-    await callback.answer("Проверяем подписку...", show_alert=False)
-    is_subscribed = await check_subscription(bot, callback.from_user.id, CHANNEL_ID)
-    if is_subscribed:
-        try:
-            await callback.message.edit_text(
-                "✅ <b>Подписка подтверждена!</b>\n\nТеперь вы можете записаться. 💅",
-                parse_mode="HTML",
-                reply_markup=main_menu_kb()
-            )
-        except Exception:
-            await callback.message.answer(
-                "✅ <b>Подписка подтверждена!</b>\n\nТеперь вы можете записаться. 💅",
-                parse_mode="HTML",
-                reply_markup=main_menu_kb()
-            )
-    else:
-        await callback.answer(
-            "❌ Вы ещё не подписались на канал!",
-            show_alert=True
-        )
 
 
 # ────────────────────────────────────────────────────────────

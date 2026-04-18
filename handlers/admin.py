@@ -543,18 +543,96 @@ async def adm_del_slot_confirm(callback: CallbackQuery):
         return
     await callback.answer()
     _, day_date, slot_time = callback.data.split(":")
+
+    # Проверяем есть ли запись на этот слот
+    from database import get_bookings_for_day
+    bookings = get_bookings_for_day(day_date)
+    booking = next((b for b in bookings if b["slot_time"] == slot_time), None)
+
+    if booking:
+        # Слот занят - запрашиваем подтверждение
+        text = (
+            f"⚠️ <b>ВНИМАНИЕ!</b>\n\n"
+            f"На слоте <b>{slot_time}</b> ({format_date_ru(day_date)}) есть запись:\n\n"
+            f"👤 {booking['client_name']}\n"
+            f"📞 {booking['phone']}\n"
+            f"🆔 TG: {booking['user_id']}\n\n"
+            f"Вы действительно хотите удалить этот слот?\n"
+            f"Запись будет отменена!"
+        )
+        try:
+            await callback.message.edit_text(
+                text,
+                parse_mode="HTML",
+                reply_markup=yes_no_kb(f"adm_del_slot_force:{day_date}:{slot_time}")
+            )
+        except Exception:
+            await callback.message.answer(
+                text,
+                parse_mode="HTML",
+                reply_markup=yes_no_kb(f"adm_del_slot_force:{day_date}:{slot_time}")
+            )
+    else:
+        # Слот свободен - удаляем сразу
+        success = delete_time_slot(day_date, slot_time)
+        if success:
+            await callback.message.edit_text(
+                f"✅ Слот <b>{slot_time}</b> на {format_date_ru(day_date)} удалён.",
+                parse_mode="HTML",
+                reply_markup=admin_menu_kb()
+            )
+        else:
+            await callback.answer(
+                "❌ Невозможно удалить: слот не существует.",
+                show_alert=True
+            )
+
+
+@router.callback_query(F.data.startswith("adm_del_slot_force:"))
+async def adm_del_slot_force(callback: CallbackQuery, bot: Bot):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔", show_alert=True)
+        return
+    await callback.answer()
+    _, day_date, slot_time = callback.data.split(":")
+
+    # Отменяем запись если есть
+    from database import get_bookings_for_day, cancel_booking_by_id
+    bookings = get_bookings_for_day(day_date)
+    booking = next((b for b in bookings if b["slot_time"] == slot_time), None)
+
+    if booking:
+        cancel_booking_by_id(booking["id"], reason="Слот удален администратором")
+        cancel_reminder(booking["id"])
+
+        # Уведомляем клиента
+        try:
+            await bot.send_message(
+                chat_id=booking["user_id"],
+                text=(
+                    f"😔 <b>Ваша запись была отменена мастером.</b>\n\n"
+                    f"📅 {format_date_ru(day_date)} в {slot_time}\n\n"
+                    f"Пожалуйста, запишитесь на другое время. 💅"
+                ),
+                parse_mode="HTML",
+                reply_markup=__import__("keyboards").main_menu_kb()
+            )
+        except Exception as e:
+            logger.warning(f"Не удалось уведомить клиента {booking['user_id']}: {e}")
+
+    # Удаляем слот
     success = delete_time_slot(day_date, slot_time)
 
-    if success:
+    try:
         await callback.message.edit_text(
-            f"✅ Слот <b>{slot_time}</b> на {format_date_ru(day_date)} удалён.",
+            f"✅ Слот <b>{slot_time}</b> на {format_date_ru(day_date)} удалён (запись отменена).",
             parse_mode="HTML",
             reply_markup=admin_menu_kb()
         )
-    else:
-        await callback.answer(
-            "❌ Невозможно удалить: слот занят или не существует.",
-            show_alert=True
+    except Exception:
+        await callback.message.answer(
+            f"✅ Слот {slot_time} удалён.",
+            reply_markup=admin_menu_kb()
         )
 
 
@@ -651,3 +729,40 @@ async def adm_cancel_booking_confirm(callback: CallbackQuery, state: FSMContext,
             f"✅ Запись #{booking_id} отменена.",
             reply_markup=admin_menu_kb()
         )
+
+
+# ────────────────────────────────────────────────────────────
+# История всех записей
+# ────────────────────────────────────────────────────────────
+@router.callback_query(F.data == "adm_show_history")
+async def adm_show_history(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("⛔", show_alert=True)
+        return
+    await callback.answer()
+
+    from database import get_all_clients
+    clients = get_all_clients()
+
+    if not clients:
+        text = "📭 <b>Нет записей в базе данных.</b>"
+    else:
+        text = "📊 <b>История всех записей</b>\n\n"
+        for client in clients[:20]:  # Показываем первые 20 записей
+            status = "❌ Отменена" if client["is_cancelled"] else "✅ Активна"
+            text += (
+                f"🆔 <code>#{client['id']}</code> | {status}\n"
+                f"👤 {client['client_name']} (@{client['username'] or 'нет'})\n"
+                f"📞 {client['phone']}\n"
+                f"📅 {format_date_ru(client['day_date'])} в {client['slot_time']}\n"
+                f"🆔 TG: {client['user_id']}\n"
+                f"🕐 Создано: {client['created_at']}\n"
+                f"{'─' * 30}\n"
+            )
+        if len(clients) > 20:
+            text += f"\n... и еще {len(clients) - 20} записей"
+
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_main_kb())
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=back_to_main_kb())

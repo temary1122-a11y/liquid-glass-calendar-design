@@ -413,3 +413,15 @@ def get_cancelled_bookings() -> list[sqlite3.Row]:
 def user_has_active_booking(user_id: int) -> bool:
     """Проверяет, есть ли у пользователя активная запись."""
     return get_user_booking(user_id) is not None
+
+
+def get_all_clients() -> list[sqlite3.Row]:
+    """Все клиенты с их записями для админки (сортировка по новизне)."""
+    with get_conn() as conn:
+        return conn.execute("""
+            SELECT b.id, b.user_id, b.username, b.client_name, b.phone,
+                   b.day_date, b.slot_time, b.created_at, b.is_cancelled,
+                   b.cancel_reason, b.cancelled_at
+            FROM bookings b
+            ORDER BY b.created_at DESC
+        """).fetchall()
