@@ -11,15 +11,12 @@
 // ── Шаблоны сообщений ──────────────────────────────────────────
 export const MESSAGE_TEMPLATES = {
   // Подтверждение записи клиенту
-  ADMIN_CONFIRMATION: (data: { name: string; date: string; time: string; service: string; address: string }) =>
-    `Здравствуйте, ${data.name}!
-
-Ваша запись на ${data.date} в ${data.time} подтверждена.
-
-Адрес: ${data.address}
-Телефон: +7 (999) 123-45-67
-
-До встречи!`,
+  ADMIN_CONFIRMATION: (data: { date: string; time: string }) =>
+    `Записала 💌
+📆: ${data.date}
+🟣: ${data.time}
+📎Адрес: Тихий переулок, 4
+🤩3 этаж, первая дверь справа 🤩`,
 
   // Форма для заполнения данных клиента при записи
   CLIENT_BOOKING_FORM: (data: { name: string; phone: string; date: string; time: string }) =>

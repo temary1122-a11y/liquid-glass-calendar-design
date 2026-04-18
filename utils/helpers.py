@@ -96,6 +96,7 @@ def client_confirmation_text(day_date: str, slot_time: str) -> str:
     except Exception:
         formatted_date = day_date
 
+    # Используем шаблон из config (будет импортирован в handlers/booking.py)
     return (
         f"Записала 💌\n"
         f"📆: {formatted_date}\n"
