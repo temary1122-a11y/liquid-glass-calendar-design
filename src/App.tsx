@@ -16,9 +16,14 @@ export default function App() {
 
   // Проверяем admin_id из Telegram WebApp initData
   useEffect(() => {
-    // Получаем user_id из Telegram WebApp
+    // Инициализируем Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
 
+    // Получаем user_id из Telegram WebApp
     if (tg?.initDataUnsafe?.user) {
       const userId = tg.initDataUnsafe.user.id;
       const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
