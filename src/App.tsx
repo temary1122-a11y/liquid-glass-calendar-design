@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Settings, Calendar as CalendarIcon } from 'lucide-react';
 import Calendar from './components/Calendar';
 import AdminSchedulePanel from './components/AdminSchedulePanel';
-import { SOCIAL_LINKS } from './config';
+import { SOCIAL_LINKS, BOT_CONFIG } from './config';
 
 // ─── View type ────────────────────────────────────────────────────────────────
 type View = 'client' | 'admin';
@@ -11,6 +11,32 @@ type View = 'client' | 'admin';
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [view, setView] = useState<View>('client');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Проверяем admin_id из Telegram WebApp initData
+  useEffect(() => {
+    // Получаем user_id из Telegram WebApp
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.initDataUnsafe?.user) {
+      const userId = tg.initDataUnsafe.user.id;
+      const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
+      setIsAdmin(userId === adminId);
+      // Если не админ, сбрасываем view на client
+      if (userId !== adminId) {
+        setView('client');
+      }
+    } else {
+      // Для разработки: проверяем через config
+      const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
+      // В dev режиме можно задать через localStorage для тестирования
+      const devUserId = parseInt(localStorage.getItem('dev_user_id') || '0');
+      setIsAdmin(devUserId === adminId);
+      // Если не админ, сбрасываем view на client
+      if (devUserId !== adminId) {
+        setView('client');
+      }
+    }
+  }, []);
 
   // Устанавливаем background image
   useEffect(() => {
@@ -55,19 +81,21 @@ export default function App() {
             </div>
           </div>
 
-          {/* View toggle button */}
-          <motion.button
-            whileTap={{ scale: 0.90 }}
-            onClick={() => setView(v => v === 'client' ? 'admin' : 'client')}
-            className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
-              text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
-            title={view === 'client' ? 'Режим мастера' : 'Режим клиента'}
-          >
-            {view === 'client'
-              ? <Settings size={18} strokeWidth={2} />
-              : <CalendarIcon size={18} strokeWidth={2} />
-            }
-          </motion.button>
+          {/* View toggle button - только для админа */}
+          {isAdmin && (
+            <motion.button
+              whileTap={{ scale: 0.90 }}
+              onClick={() => setView(v => v === 'client' ? 'admin' : 'client')}
+              className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
+                text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
+              title={view === 'client' ? 'Режим мастера' : 'Режим клиента'}
+            >
+              {view === 'client'
+                ? <Settings size={18} strokeWidth={2} />
+                : <CalendarIcon size={18} strokeWidth={2} />
+              }
+            </motion.button>
+          )}
         </div>
 
         {/* ── View subtitle ── */}
