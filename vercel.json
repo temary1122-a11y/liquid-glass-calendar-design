@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "env": {
+    "VITE_BACKEND_URL": "https://liquid-glass-calendar-design.onrender.com"
+  }
+}
