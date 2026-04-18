@@ -85,7 +85,7 @@ export const BOT_CONFIG = {
   BOT_TOKEN: import.meta.env.VITE_BOT_TOKEN || '',
 
   // ID администратора (получить у @userinfobot)
-  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '8736987138',
+  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '1834686956',
 
   // ID канала для обязательной подписки
   CHANNEL_ID: import.meta.env.VITE_CHANNEL_ID || '@your_channel',

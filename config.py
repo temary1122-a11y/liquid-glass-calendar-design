@@ -27,7 +27,7 @@ if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
         pass
 
 # ── ID администратора (ваш Telegram user_id) ────────────────
-ADMIN_ID: int = int(os.getenv("ADMIN_ID", "8736987138"))
+ADMIN_ID: int = int(os.getenv("ADMIN_ID", "1834686956"))
 
 # ── Путь к базе данных SQLite ────────────────────────────────
 DB_PATH: str = os.getenv("DB_PATH", "lash_bot.db")
