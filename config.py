@@ -57,7 +57,6 @@ PORTFOLIO_LINK: str = "https://ru.pinterest.com/crystalwithluv/_created/"
 PRICES_POST_LINK: str = os.getenv("PRICES_POST_LINK", "https://t.me/lashessoto4ka/285")
 
 # ── Ссылки на социальные сети ────────────────────────────────
-TIKTOK_LINK: str = os.getenv("TIKTOK_LINK", "https://tiktok.com/@yourusername")
 INSTAGRAM_LINK: str = os.getenv("INSTAGRAM_LINK", "https://instagram.com/yourusername")
 
 # ── Рабочие часы по умолчанию (используются при инициализации) ─

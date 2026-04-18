@@ -95,7 +95,7 @@ function GhostExpandButton({ count, onClick }: GhostExpandButtonProps) {
     <motion.button
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="absolute bottom-0 left-1 right-1 h-4.5 flex items-center justify-center gap-0.5
+      className="absolute bottom-[-5px] left-1 right-1 h-4.5 flex items-center justify-center gap-0.5
         rounded-lg bg-white/5 hover:bg-white/12
         text-[#c4967a] text-[9px] font-medium
         transition-all duration-200 select-none"

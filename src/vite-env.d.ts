@@ -6,7 +6,6 @@ interface ImportMetaEnv {
 
   // Social Media Links
   readonly VITE_PRICES_POST_LINK?: string;
-  readonly VITE_TIKTOK_LINK?: string;
   readonly VITE_INSTAGRAM_LINK?: string;
 
   // Bot Configuration

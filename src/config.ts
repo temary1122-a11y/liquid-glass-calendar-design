@@ -77,9 +77,6 @@ export const SOCIAL_LINKS = {
   // Ссылка на пост с прайсами в группе
   PRICES_POST_LINK: import.meta.env.VITE_PRICES_POST_LINK || 'https://t.me/lashessoto4ka/285',
 
-  // Ссылка на TikTok
-  TIKTOK_LINK: import.meta.env.VITE_TIKTOK_LINK || 'https://tiktok.com/@yourusername',
-
   // Ссылка на Instagram
   INSTAGRAM_LINK: import.meta.env.VITE_INSTAGRAM_LINK || 'https://instagram.com/yourusername',
 

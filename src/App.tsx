@@ -123,32 +123,18 @@ export default function App() {
                   <p className="text-sm text-[#9e8476] mt-1">Посмотреть цены на услуги</p>
                 </a>
 
-                {/* TikTok and Instagram buttons */}
-                <div className="grid grid-cols-2 gap-3">
-                  <a
-                    href={SOCIAL_LINKS.TIKTOK_LINK}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-3 liquid-glass-calendar rounded-xl hover:bg-white/50 transition-all duration-200 text-center"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-xl">🎵</span>
-                      <span className="text-sm font-semibold text-[#3d2b1f]">TikTok</span>
-                    </div>
-                  </a>
-
-                  <a
-                    href={SOCIAL_LINKS.INSTAGRAM_LINK}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-3 liquid-glass-calendar rounded-xl hover:bg-white/50 transition-all duration-200 text-center"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-xl">📸</span>
-                      <span className="text-sm font-semibold text-[#3d2b1f]">Instagram</span>
-                    </div>
-                  </a>
-                </div>
+                {/* Instagram button */}
+                <a
+                  href={SOCIAL_LINKS.INSTAGRAM_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full p-3 liquid-glass-calendar rounded-xl hover:bg-white/50 transition-all duration-200 text-center"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-xl">📸</span>
+                    <span className="text-sm font-semibold text-[#3d2b1f]">Instagram</span>
+                  </div>
+                </a>
               </motion.div>
             </motion.div>
           ) : (
