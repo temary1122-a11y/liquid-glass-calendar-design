@@ -22,12 +22,16 @@ export const isVibrationSupported = (): boolean => {
  */
 export const vibrateLight = (): void => {
   const haptic = getHapticFeedback();
+  console.log('vibrateLight called, haptic:', !!haptic);
   if (haptic) {
     try {
       haptic.impactOccurred('light');
+      console.log('vibrateLight executed');
     } catch (error) {
       console.warn('Haptic feedback error:', error);
     }
+  } else {
+    console.warn('Haptic feedback not available');
   }
 };
 
