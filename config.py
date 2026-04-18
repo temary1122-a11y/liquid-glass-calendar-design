@@ -29,6 +29,9 @@ if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
 # ── ID администратора (ваш Telegram user_id) ────────────────
 ADMIN_ID: int = int(os.getenv("ADMIN_ID", "1834686956"))
 
+# ── Токен бота (с удалением пробелов и переводов строк) ───────
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip()
+
 # ── Юзернейм администратора (для редиректа в личку) ───────────
 ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "@SotkaLashes")
 
