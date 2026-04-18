@@ -2,7 +2,7 @@
 // src/components/TimePicker.tsx — iOS-style Time Picker
 // ============================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 interface TimePickerProps {
@@ -14,10 +14,13 @@ interface TimePickerProps {
 export default function TimePicker({ value, onChange, onClose }: TimePickerProps) {
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
-  
+
+  const hourScrollRef = useRef<HTMLDivElement>(null);
+  const minuteScrollRef = useRef<HTMLDivElement>(null);
+
   const hourOptions = Array.from({ length: 24 }, (_, i) => i);
   const minuteOptions = [0, 15, 30, 45];
-  
+
   useEffect(() => {
     if (value) {
       const [h, m] = value.split(':').map(Number);
@@ -25,33 +28,57 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
       setMinutes(m);
     }
   }, [value]);
-  
+
   const handleVibrate = () => {
     if (navigator.vibrate) {
       navigator.vibrate(10);
     }
   };
-  
-  const handleHourSelect = (hour: number) => {
-    handleVibrate();
-    setHours(hour);
-    updateTime(hour, minutes);
-  };
-  
-  const handleMinuteSelect = (minute: number) => {
-    handleVibrate();
-    setMinutes(minute);
-    updateTime(hours, minute);
-  };
-  
+
   const updateTime = (h: number, m: number) => {
     const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     onChange(timeStr);
   };
-  
+
   const formatHour = (h: number) => String(h).padStart(2, '0');
   const formatMinute = (m: number) => String(m).padStart(2, '0');
-  
+
+  // Обработчик скролла для автоматического выбора
+  const handleScroll = (type: 'hours' | 'minutes') => {
+    handleVibrate();
+
+    const ref = type === 'hours' ? hourScrollRef.current : minuteScrollRef.current;
+    if (!ref) return;
+
+    const scrollContainer = ref.children[0];
+    const containerCenter = scrollContainer.scrollTop + scrollContainer.clientHeight / 2;
+
+    const items = scrollContainer.children;
+    let closestItem: HTMLButtonElement | null = null;
+    let minDistance = Infinity;
+
+    for (const item of items) {
+      const itemCenter = (item as HTMLElement).offsetTop + (item as HTMLElement).offsetHeight / 2;
+      const distance = Math.abs(containerCenter - itemCenter);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestItem = item as HTMLButtonElement;
+      }
+    }
+
+    if (closestItem) {
+      const value = parseInt(closestItem.textContent || '0');
+      if (type === 'hours') {
+        setHours(value);
+        updateTime(value, minutes);
+      } else {
+        setMinutes(value);
+        updateTime(hours, value);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm">
       <motion.div
@@ -77,30 +104,33 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
             Готово
           </button>
         </div>
-        
+
         {/* Picker */}
         <div className="relative h-[200px] flex">
           {/* Gradient masks */}
           <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/90 to-transparent pointer-events-none z-10 rounded-t-2xl" />
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/90 to-transparent pointer-events-none z-10 rounded-b-2xl" />
-          
+
           {/* Selection indicator */}
           <div className="absolute top-1/2 left-0 right-0 h-10 -translate-y-1/2 border-y border-[#c4967a]/30 bg-[#c4967a]/5 z-0" />
-          
+
           {/* Hours column */}
-          <div className="flex-1 overflow-hidden relative">
-            <div className="absolute inset-0 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 overflow-hidden relative" ref={hourScrollRef}>
+            <div
+              className="absolute inset-0 overflow-y-auto scrollbar-hide snap-y snap-mandatory"
+              style={{ scrollSnapType: 'y mandatory' }}
+              onScroll={() => handleScroll('hours')}
+            >
               <div className="py-[80px]">
                 {hourOptions.map((hour) => (
                   <motion.button
                     key={hour}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleHourSelect(hour)}
                     className={`
                       w-full h-10 flex items-center justify-center text-lg font-medium
-                      transition-all duration-200
-                      ${hours === hour 
-                        ? 'text-[#3d2b1f] font-semibold scale-110' 
+                      transition-all duration-200 snap-center
+                      ${hours === hour
+                        ? 'text-[#3d2b1f] font-semibold scale-110'
                         : 'text-[#9e8476] scale-100'
                       }
                     `}
@@ -111,26 +141,29 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
               </div>
             </div>
           </div>
-          
+
           {/* Separator */}
           <div className="w-8 flex items-center justify-center">
             <span className="text-2xl text-[#c4967a] font-light">:</span>
           </div>
-          
+
           {/* Minutes column */}
-          <div className="flex-1 overflow-hidden relative">
-            <div className="absolute inset-0 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 overflow-hidden relative" ref={minuteScrollRef}>
+            <div
+              className="absolute inset-0 overflow-y-auto scrollbar-hide snap-y snap-mandatory"
+              style={{ scrollSnapType: 'y mandatory' }}
+              onScroll={() => handleScroll('minutes')}
+            >
               <div className="py-[80px]">
                 {minuteOptions.map((minute) => (
                   <motion.button
                     key={minute}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleMinuteSelect(minute)}
                     className={`
                       w-full h-10 flex items-center justify-center text-lg font-medium
-                      transition-all duration-200
-                      ${minutes === minute 
-                        ? 'text-[#3d2b1f] font-semibold scale-110' 
+                      transition-all duration-200 snap-center
+                      ${minutes === minute
+                        ? 'text-[#3d2b1f] font-semibold scale-110'
                         : 'text-[#9e8476] scale-100'
                       }
                     `}

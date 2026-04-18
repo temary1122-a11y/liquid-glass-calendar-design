@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
-from config import ADMIN_ID, DEFAULT_TIME_SLOTS
+from config import ADMIN_ID
 from states import AdminStates
 from database import (
     add_work_day, close_day, open_day,
@@ -254,12 +254,10 @@ async def adm_add_day_date(message: Message, state: FSMContext):
     await state.update_data(new_day_date=date_str)
     await state.set_state(AdminStates.add_day_slots)
 
-    default_slots_str = ", ".join(DEFAULT_TIME_SLOTS)
     await message.answer(
         f"✅ <b>Дата:</b> {format_date_ru(date_str)}\n\n"
         f"🕐 Введите временные слоты через запятую:\n"
-        f"<i>По умолчанию: {default_slots_str}</i>\n\n"
-        f"Или отправьте <code>default</code> для использования стандартных слотов.",
+        f"<i>Пример: 09:00, 10:30, 12:00</i>",
         parse_mode="HTML"
     )
 
@@ -273,22 +271,18 @@ async def adm_add_day_slots(message: Message, state: FSMContext):
     day_date = data["new_day_date"]
     text = message.text.strip()
 
-    if text.lower() == "default":
-        slots = DEFAULT_TIME_SLOTS
-    else:
-        raw = [s.strip() for s in text.split(",")]
-        time_pattern = re.compile(r"^\d{2}:\d{2}$")
-        slots = []
-        for s in raw:
-            if time_pattern.match(s):
-                slots.append(s)
-            else:
-                await message.answer(
-                    f"⚠️ Некорректное время: <code>{s}</code>.\n"
-                    f"Формат: <code>ЧЧ:ММ</code>, слоты через запятую.",
-                    parse_mode="HTML"
-                )
-                return
+    raw = [s.strip() for s in text.split(",")]
+    time_pattern = re.compile(r"^\d{2}:\d{2}$")
+    slots = []
+    for s in raw:
+        if time_pattern.match(s):
+            slots.append(s)
+        else:
+            await message.answer(
+                f"⚠️ Некорректное время: <code>{s}</code>.\n"
+                "Используйте формат ЧЧ:ММ (например, 09:00)."
+            )
+            return
 
     success = add_work_day(day_date, slots)
     await state.clear()

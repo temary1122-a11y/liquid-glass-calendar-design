@@ -6,8 +6,11 @@ import os
 from dotenv import load_dotenv
 
 # Загружаем .env если он существует (для локальной разработки)
-# На Railway переменные окружения устанавливаются напрямую
+# На Render переменные окружения устанавливаются напрямую
 load_dotenv()
+
+# ── Mini App URL ─────────────────────────────────────────────
+MINI_APP_URL: str = "https://liquid-glass-calendar-design.vercel.app"
 
 # ── Токен бота (получить у @BotFather) ──────────────────────
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
@@ -36,20 +39,6 @@ CHANNEL_LINK: str = os.getenv("CHANNEL_LINK", "https://t.me/your_channel")
 # ── Путь к базе данных SQLite ────────────────────────────────
 DB_PATH: str = os.getenv("DB_PATH", "lash_bot.db")
 
-# ── Прайс-лист (HTML) ────────────────────────────────────────
-PRICE_TEXT: str = (
-    "💅 <b>Прайс-лист на наращивание ресниц</b>\n\n"
-    "╔══════════════════════════╗\n"
-    "║  <b>2D</b>  —  <b>2 000 руб.</b>           ║\n"
-    "║  <b>3D</b>  —  <b>2 500 руб.</b>           ║\n"
-    "╚══════════════════════════╝\n\n"
-    "✨ В стоимость входит:\n"
-    "• Подбор изгиба и длины\n"
-    "• Профессиональные материалы\n"
-    "• Коррекция формы\n\n"
-    "📞 Для уточнения деталей — записывайтесь через бота!"
-)
-
 # ── Адрес салона ─────────────────────────────────────────────
 ADDRESS: str = "Тихий переулок, 4"
 
@@ -59,14 +48,5 @@ PORTFOLIO_LINK: str = "https://ru.pinterest.com/crystalwithluv/_created/"
 # ── Ссылка на пост с прайсами в группе ────────────────────────
 PRICES_POST_LINK: str = os.getenv("PRICES_POST_LINK", "https://t.me/lashessoto4ka/285")
 
-# ── Ссылки на социальные сети ────────────────────────────────
-INSTAGRAM_LINK: str = os.getenv("INSTAGRAM_LINK", "https://instagram.com/yourusername")
-
-# ── Рабочие часы по умолчанию (используются при инициализации) ─
-DEFAULT_TIME_SLOTS: list[str] = [
-    "09:00", "10:30", "12:00", "13:30",
-    "15:00", "16:30", "18:00", "19:30",
-]
-
-# ── Горизонт записи (дней вперёд) ────────────────────────────
-BOOKING_HORIZON_DAYS: int = 30
+# ── Ссылка на Instagram ─────────────────────────────────────
+INSTAGRAM_LINK: str = os.getenv("INSTAGRAM_LINK", "https://www.instagram.com/your_lashes_simf?igsh=MTFvaHdscnIzbWF0Mw%3D%3D&utm_source=qr")

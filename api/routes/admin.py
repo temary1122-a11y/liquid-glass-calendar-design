@@ -81,10 +81,8 @@ async def add_work_day_endpoint(request: Request, body: dict, x_admin_id: int = 
     if not date:
         raise HTTPException(status_code=422, detail="date is required")
 
-    # Если time_slots не указаны или "default", используем стандартные
-    if not time_slots or time_slots == ["default"]:
-        from config import DEFAULT_TIME_SLOTS
-        time_slots = DEFAULT_TIME_SLOTS
+    if not time_slots:
+        raise HTTPException(status_code=422, detail="time_slots is required")
 
     success = add_work_day(date, time_slots)
     if success:

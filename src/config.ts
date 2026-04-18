@@ -77,10 +77,6 @@ export const SOCIAL_LINKS = {
 export const UI_CONFIG = {
   VISIBLE_SLOTS: 3,
   MAX_VISIBLE_DAYS: 30,
-  DEFAULT_TIME_SLOTS: [
-    '09:00', '10:30', '12:00', '13:30',
-    '15:00', '16:30', '18:00', '19:30',
-  ],
 };
 
 // ── Токен и ID администратора (для интеграции с ботом) ──────────
