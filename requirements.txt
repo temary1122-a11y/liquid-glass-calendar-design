@@ -1,8 +1,10 @@
 aiogram==3.13.1
 python-dotenv==1.0.1
 apscheduler==3.10.4
-pydantic-core>=2.14.0
+pydantic-core==2.14.0
+pydantic==2.4.1
 fastapi==0.115.0
 uvicorn==0.32.0
 slowapi==0.1.9
 aiofiles==24.1.0
+limits==5.8.0
