@@ -19,16 +19,8 @@ import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSwipeable } from 'react-swipeable';
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
-const MOCK_SLOTS: Record<string, string[]> = {
-  [format(new Date(), 'yyyy-MM-dd')]: ['09:00', '11:00', '14:00', '16:30'],
-  [format(new Date(Date.now() + 86400000), 'yyyy-MM-dd')]: ['10:00', '13:00', '17:00'],
-  [format(new Date(Date.now() + 2 * 86400000), 'yyyy-MM-dd')]: ['09:30', '12:00', '15:30', '18:00', '19:00'],
-  [format(new Date(Date.now() + 3 * 86400000), 'yyyy-MM-dd')]: ['11:00', '16:00'],
-  [format(new Date(Date.now() + 5 * 86400000), 'yyyy-MM-dd')]: ['09:00', '10:30', '14:00', '15:30', '17:00', '19:30'],
-  [format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd')]: ['13:00', '16:00', '18:00'],
-  [format(new Date(Date.now() + 9 * 86400000), 'yyyy-MM-dd')]: ['09:00', '12:30'],
-  [format(new Date(Date.now() + 12 * 86400000), 'yyyy-MM-dd')]: ['10:00', '14:00', '16:00', '18:30'],
-};
+// Тестовые данные удалены - слоты загружаются из API
+const MOCK_SLOTS: Record<string, string[]> = {};
 
 const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const VISIBLE_SLOTS = 3; // slots shown before overflow

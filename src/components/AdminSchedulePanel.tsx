@@ -529,6 +529,10 @@ export default function AdminSchedulePanel() {
   const [selectedDay, setSelectedDay]   = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
   const [slots, setSlots] = useState<Record<string, string[]>>(AVAILABLE_SLOTS);
   const [clients, setClients] = useState(() => {
+    // Очищаем тестовые данные из localStorage
+    localStorage.removeItem('lash_bot_clients');
+    localStorage.removeItem('lash_bot_slots');
+
     // Загружаем клиентов из localStorage или используем MOCK_CLIENTS
     const saved = localStorage.getItem('lash_bot_clients');
     if (saved) {
