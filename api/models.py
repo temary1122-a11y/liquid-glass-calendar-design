@@ -1,36 +1,32 @@
 # ============================================================
-# api/models.py — Модели для API (используем dataclasses вместо pydantic)
+# api/models.py — Pydantic модели для API (Pydantic 1.x)
 # ============================================================
 
-from dataclasses import dataclass
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 
-@dataclass
-class TimeSlot:
+class TimeSlot(BaseModel):
     """Временной слот"""
     time: str
     available: bool
 
 
-@dataclass
-class WorkDay:
+class WorkDay(BaseModel):
     """Рабочий день"""
     date: str
     slots: List[TimeSlot]
     is_closed: bool = False
 
 
-@dataclass
-class Service:
+class Service(BaseModel):
     """Услуга"""
     id: str
     name: str
     price: int
 
 
-@dataclass
-class BookingRequest:
+class BookingRequest(BaseModel):
     """Запрос на запись"""
     date: str
     time: str
@@ -39,16 +35,14 @@ class BookingRequest:
     service_id: str  # ID услуги
 
 
-@dataclass
-class BookingResponse:
+class BookingResponse(BaseModel):
     """Ответ на запись"""
     success: bool
     message: str
     booking_id: Optional[int] = None
 
 
-@dataclass
-class GUISettings:
+class GUISettings(BaseModel):
     """Настройки GUI"""
     background_color: str = "#ffffff"
     primary_color: str = "#6366f1"
@@ -56,15 +50,10 @@ class GUISettings:
     text_color: str = "#1f2937"
     calendar_style: str = "modern"  # modern, classic, minimal
     background_image: Optional[str] = None
-    services: List[Service] = None  # Список услуг
-
-    def __post_init__(self):
-        if self.services is None:
-            self.services = []
+    services: List[Service] = []  # Список услуг
 
 
-@dataclass
-class MyBooking:
+class MyBooking(BaseModel):
     """Запись клиента"""
     id: int
     date: str
@@ -73,36 +62,31 @@ class MyBooking:
     phone: str
 
 
-@dataclass
-class AddWorkDayRequest:
+class AddWorkDayRequest(BaseModel):
     """Запрос на добавление рабочего дня"""
     date: str
-    time_slots: Optional[list[str]] = None
+    time_slots: list[str] | None = None
 
 
-@dataclass
-class AddTimeSlotRequest:
+class AddTimeSlotRequest(BaseModel):
     """Запрос на добавления временного слота"""
     date: str
     time: str
 
 
-@dataclass
-class DeleteTimeSlotRequest:
+class DeleteTimeSlotRequest(BaseModel):
     """Запрос на удаление временного слота"""
     date: str
     time: str
 
 
-@dataclass
-class WorkDayInfo:
+class WorkDayInfo(BaseModel):
     """Информация о рабочем дне"""
     date: str
     is_closed: bool
     slots: list[dict]  # Слоты с полями time и is_booked
 
 
-@dataclass
-class DeleteWorkDayRequest:
+class DeleteWorkDayRequest(BaseModel):
     """Запрос на удаление рабочего дня"""
     day_date: str

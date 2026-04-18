@@ -48,14 +48,14 @@ async def verify_admin(x_admin_id: int = Header(None, description="Admin ID for 
         raise HTTPException(status_code=403, detail="Access denied")
 
 
-@router.get("/settings")
+@router.get("/settings", response_model=GUISettings)
 @limiter.limit("200/minute")
 async def get_gui_settings(request: Request):
     """Получить настройки GUI"""
     return gui_settings
 
 
-@router.post("/settings")
+@router.post("/settings", response_model=GUISettings)
 @limiter.limit("200/minute")
 async def update_gui_settings(request: Request, settings: GUISettings):
     """Обновить настройки GUI"""
@@ -121,7 +121,7 @@ async def delete_time_slot_endpoint(req: Request, request: DeleteTimeSlotRequest
         return {"success": False, "message": "Слот занят или не найден"}
 
 
-@router.get("/work-days")
+@router.get("/work-days", response_model=list[WorkDayInfo])
 @limiter.limit("200/minute")
 async def get_work_days_endpoint(req: Request, x_admin_id: int = Header(None)):
     """Получить все рабочие дни"""

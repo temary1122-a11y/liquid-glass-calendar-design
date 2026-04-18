@@ -5,12 +5,11 @@
 from fastapi import APIRouter, HTTPException, Request
 from typing import List
 from datetime import datetime, timedelta
-from dataclasses import dataclass
+from pydantic import BaseModel
 from slowapi import Limiter
 
-# Dataclass для отмены записи
-@dataclass
-class CancelBookingRequest:
+# Pydantic модель для отмены записи
+class CancelBookingRequest(BaseModel):
     reason: str
 
 from api.models import WorkDay, TimeSlot, BookingRequest, BookingResponse, MyBooking
@@ -30,7 +29,7 @@ router = APIRouter(prefix="/api/booking", tags=["booking"])
 limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.get("x-forwarded-for", ""))
 
 
-@router.get("/available-dates")
+@router.get("/available-dates", response_model=List[WorkDay])
 @limiter.limit("60/minute")
 async def get_available_dates(request: Request):
     """Получить доступные даты и слоты"""
@@ -57,7 +56,7 @@ async def get_available_dates(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/book")
+@router.post("/book", response_model=BookingResponse)
 @limiter.limit("5/hour")
 async def create_booking_endpoint(request: Request, booking: BookingRequest):
     """Создать запись"""
@@ -105,7 +104,7 @@ async def create_booking_endpoint(request: Request, booking: BookingRequest):
         )
 
 
-@router.get("/my-bookings/{user_id}")
+@router.get("/my-bookings/{user_id}", response_model=List[MyBooking])
 async def get_my_bookings(user_id: int):
     """Получить записи пользователя"""
     try:
