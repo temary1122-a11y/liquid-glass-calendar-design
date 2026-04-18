@@ -38,24 +38,16 @@ export default function App() {
         source: 'telegram'
       });
     } else {
-      // Для разработки: проверяем через config
-      const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
-      // В dev режиме можно задать через localStorage для тестирования
-      const devUserId = parseInt(localStorage.getItem('dev_user_id') || '0');
-      const isAdminUser = devUserId === adminId;
+      // Если Telegram WebApp недоступен или нет user - считаем клиентом
+      // Это может быть если открыли в обычном браузере
+      setIsAdmin(false);
+      setView('client');
 
-      setIsAdmin(isAdminUser);
-      // Если не админ, сбрасываем view на client
-      if (!isAdminUser) {
-        setView('client');
-      }
-
-      // Сохраняем debug info для отображения
       setDebugInfo({
-        userId: devUserId,
-        adminId,
-        isAdmin: isAdminUser,
-        source: 'localStorage'
+        userId: 0,
+        adminId: parseInt(BOT_CONFIG.ADMIN_ID),
+        isAdmin: false,
+        source: 'no-telegram'
       });
     }
   }, []);
