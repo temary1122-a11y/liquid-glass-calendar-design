@@ -49,16 +49,6 @@ async def cmd_admin(message: Message, state: FSMContext):
 
 
 # ────────────────────────────────────────────────────────────
-# /book — записаться
-# ────────────────────────────────────────────────────────────
-@router.message(Command("book"))
-async def cmd_book(message: Message, state: FSMContext):
-    """Быстрая команда для записи."""
-    from handlers.booking import book_start
-    await book_start(message, state)
-
-
-# ────────────────────────────────────────────────────────────
 # /cancel — отменить запись
 # ────────────────────────────────────────────────────────────
 @router.message(Command("cancel"))
