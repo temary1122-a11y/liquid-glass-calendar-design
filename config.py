@@ -29,6 +29,9 @@ if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
 # ── ID администратора (ваш Telegram user_id) ────────────────
 ADMIN_ID: int = int(os.getenv("ADMIN_ID", "1834686956"))
 
+# ── Юзернейм администратора (для редиректа в личку) ───────────
+ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "@SotkaLashes")
+
 # ── Путь к базе данных SQLite ────────────────────────────────
 DB_PATH: str = os.getenv("DB_PATH", "lash_bot.db")
 
