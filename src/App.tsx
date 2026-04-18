@@ -17,9 +17,16 @@ export default function App() {
   useEffect(() => {
     // Получаем user_id из Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
+    console.log('Telegram WebApp:', tg);
+    console.log('InitDataUnsafe:', tg?.initDataUnsafe);
+
     if (tg?.initDataUnsafe?.user) {
       const userId = tg.initDataUnsafe.user.id;
       const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
+      console.log('User ID from Telegram:', userId);
+      console.log('Admin ID from config:', adminId);
+      console.log('Is admin?', userId === adminId);
+
       setIsAdmin(userId === adminId);
       // Если не админ, сбрасываем view на client
       if (userId !== adminId) {
@@ -30,6 +37,10 @@ export default function App() {
       const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
       // В dev режиме можно задать через localStorage для тестирования
       const devUserId = parseInt(localStorage.getItem('dev_user_id') || '0');
+      console.log('Dev user ID from localStorage:', devUserId);
+      console.log('Admin ID from config:', adminId);
+      console.log('Is admin (dev)?', devUserId === adminId);
+
       setIsAdmin(devUserId === adminId);
       // Если не админ, сбрасываем view на client
       if (devUserId !== adminId) {
