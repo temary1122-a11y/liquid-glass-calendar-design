@@ -18,16 +18,34 @@ scheduler = AsyncIOScheduler(
 )
 
 
-async def _send_reminder(bot: Bot, user_id: int, slot_time: str) -> None:
+async def _send_reminder(bot: Bot, user_id: int, slot_time: str, day_date: str = None) -> None:
     """Функция-задача: отправляет напоминание пользователю."""
     try:
+        from utils.helpers import format_date_ru
+        from config import ADDRESS
+
+        # Формируем дату для сообщения
+        date_text = "завтра"
+        if day_date:
+            try:
+                from datetime import datetime, timedelta
+                booking_date = datetime.strptime(day_date, "%Y-%m-%d")
+                # Если запись не завтра, покажем дату
+                tomorrow = datetime.now() + timedelta(days=1)
+                if booking_date.date() != tomorrow.date():
+                    date_text = format_date_ru(day_date)
+            except Exception:
+                pass
+
         await bot.send_message(
             chat_id=user_id,
             text=(
-                f"⏰ <b>Напоминание о записи!</b>\n\n"
-                f"Напоминаем, что вы записаны на наращивание ресниц "
-                f"<b>завтра в {slot_time}</b>.\n\n"
-                f"Ждём вас! 💖✨"
+                f"🔔 <b>Напоминание о записи</b>\n\n"
+                f"Здравствуйте!\n\n"
+                f"Напоминаем, что запись {date_text} в {slot_time}.\n\n"
+                f"📎 Адрес: {ADDRESS}\n"
+                f"🤩 3 этаж, первая дверь справа 🤩\n\n"
+                f"Если нужно отменить — нажмите «❌ Отменить запись» в меню бота."
             ),
             parse_mode="HTML",
         )
@@ -55,7 +73,7 @@ def schedule_reminder(bot: Bot, booking_id: int, user_id: int, day_date: str, sl
             _send_reminder,
             trigger="date",
             run_date=dt_remind,
-            args=[bot, user_id, slot_time],
+            args=[bot, user_id, slot_time, day_date],
             id=job_id,
             replace_existing=True,
             misfire_grace_time=3600,  # допустимая задержка 1 час

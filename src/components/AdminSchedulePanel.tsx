@@ -24,7 +24,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
-import { MESSAGE_TEMPLATES, CONTACT_INFO } from '../config';
+import { MESSAGE_TEMPLATES } from '../config';
 import { AVAILABLE_SLOTS, MOCK_CLIENTS } from '../mockData';
 import { useVibration, VIBRATION_PATTERNS } from '../hooks/useVibration';
 import TimePicker from './TimePicker';
@@ -648,11 +648,8 @@ export default function AdminSchedulePanel() {
 
       // Используем шаблон из config.ts
       const message = MESSAGE_TEMPLATES.ADMIN_CONFIRMATION({
-        name: client.name,
-        date: format(parseISO(client.date), 'd MMMM yyyy', { locale: ru }),
+        date: format(parseISO(client.date), 'd.MM'),
         time: client.time,
-        service: client.service,
-        address: CONTACT_INFO.ADDRESS,
       });
 
       const telegramUrl = client.username

@@ -29,15 +29,6 @@ export const MESSAGE_TEMPLATES = {
 
 Подтвердить запись?`,
 
-  // Быстрый ответ администратора при подтверждении записи
-  ADMIN_QUICK_REPLY: (data: { name: string; date: string; time: string }) =>
-    `✅ <b>Запись подтверждена!</b>
-
-👤 ${data.name}
-📅 ${data.date} в ${data.time}
-
-Ждём вас! Если нужно отменить — напишите нам.`,
-
   // Уведомление об отмене записи
   BOOKING_CANCELLED: (data: { name: string; date: string; time: string }) =>
     `❌ <b>Запись отменена</b>
