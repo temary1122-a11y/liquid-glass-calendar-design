@@ -262,7 +262,7 @@ export default function Calendar() {
   });
 
   return (
-    <div className="liquid-glass-calendar p-5 w-full" {...swipeHandlers}>
+    <div className="liquid-glass-calendar p-6 w-full" {...swipeHandlers}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
         <NavButton direction="left" onClick={prevMonth} />

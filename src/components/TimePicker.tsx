@@ -1,8 +1,8 @@
 // ============================================================
-// src/components/TimePicker.tsx — iOS-style Time Picker
+// src/components/TimePicker.tsx — Simple Time Picker
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface TimePickerProps {
@@ -12,71 +12,39 @@ interface TimePickerProps {
 }
 
 export default function TimePicker({ value, onChange, onClose }: TimePickerProps) {
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
-
-  const hourScrollRef = useRef<HTMLDivElement>(null);
-  const minuteScrollRef = useRef<HTMLDivElement>(null);
-
-  const hourOptions = Array.from({ length: 24 }, (_, i) => i);
-  const minuteOptions = [0, 15, 30, 45];
+  const [time, setTime] = useState(value);
 
   useEffect(() => {
-    if (value) {
-      const [h, m] = value.split(':').map(Number);
-      setHours(h);
-      setMinutes(m);
-    }
+    setTime(value);
   }, [value]);
 
   const handleVibrate = () => {
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.HapticFeedback) {
+      try {
+        tg.HapticFeedback.selectionChanged();
+      } catch (error) {
+        console.warn('Haptic feedback error:', error);
+      }
     }
   };
 
-  const updateTime = (h: number, m: number) => {
-    const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    onChange(timeStr);
-  };
-
-  const formatHour = (h: number) => String(h).padStart(2, '0');
-  const formatMinute = (m: number) => String(m).padStart(2, '0');
-
-  // Обработчик скролла для автоматического выбора
-  const handleScroll = (type: 'hours' | 'minutes') => {
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleVibrate();
+    setTime(e.target.value);
+    onChange(e.target.value);
+  };
 
-    const ref = type === 'hours' ? hourScrollRef.current : minuteScrollRef.current;
-    if (!ref) return;
-
-    const scrollContainer = ref.children[0];
-    const containerCenter = scrollContainer.scrollTop + scrollContainer.clientHeight / 2;
-
-    const items = scrollContainer.children;
-    let closestItem: HTMLButtonElement | null = null;
-    let minDistance = Infinity;
-
-    for (const item of items) {
-      const itemCenter = (item as HTMLElement).offsetTop + (item as HTMLElement).offsetHeight / 2;
-      const distance = Math.abs(containerCenter - itemCenter);
-
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestItem = item as HTMLButtonElement;
+  const handleConfirm = () => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.HapticFeedback) {
+      try {
+        tg.HapticFeedback.notificationOccurred('success');
+      } catch (error) {
+        console.warn('Haptic feedback error:', error);
       }
     }
-
-    if (closestItem) {
-      const value = parseInt(closestItem.textContent || '0');
-      if (type === 'hours') {
-        setHours(value);
-        updateTime(value, minutes);
-      } else {
-        setMinutes(value);
-        updateTime(hours, value);
-      }
-    }
+    onClose();
   };
 
   return (
@@ -89,7 +57,7 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
         className="w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-t-3xl p-6 border-t border-white/30"
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <button
             onClick={onClose}
             className="text-[#c4967a] text-sm font-semibold"
@@ -98,82 +66,52 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
           </button>
           <h3 className="text-[#3d2b1f] text-base font-semibold">Выберите время</h3>
           <button
-            onClick={onClose}
+            onClick={handleConfirm}
             className="text-[#2e7d5e] text-sm font-semibold"
           >
             Готово
           </button>
         </div>
 
-        {/* Picker */}
-        <div className="relative h-[200px] flex">
-          {/* Gradient masks */}
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/90 to-transparent pointer-events-none z-10 rounded-t-2xl" />
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/90 to-transparent pointer-events-none z-10 rounded-b-2xl" />
+        {/* Time Input */}
+        <div className="flex items-center justify-center">
+          <input
+            type="time"
+            value={time}
+            onChange={handleTimeChange}
+            className="
+              w-48 h-14 text-2xl text-[#3d2b1f] font-semibold
+              bg-[#f7d5bc]/30 border-2 border-[#c4967a]/30 rounded-2xl
+              text-center focus:outline-none focus:border-[#c4967a]
+              transition-all duration-200
+            "
+            step={900} // 15 minutes
+          />
+        </div>
 
-          {/* Selection indicator */}
-          <div className="absolute top-1/2 left-0 right-0 h-10 -translate-y-1/2 border-y border-[#c4967a]/30 bg-[#c4967a]/5 z-0" />
-
-          {/* Hours column */}
-          <div className="flex-1 overflow-hidden relative" ref={hourScrollRef}>
-            <div
-              className="absolute inset-0 overflow-y-auto scrollbar-hide snap-y snap-mandatory"
-              style={{ scrollSnapType: 'y mandatory' }}
-              onScroll={() => handleScroll('hours')}
+        {/* Quick select buttons */}
+        <div className="grid grid-cols-4 gap-3 mt-6">
+          {['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'].map((quickTime) => (
+            <motion.button
+              key={quickTime}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                handleVibrate();
+                setTime(quickTime);
+                onChange(quickTime);
+              }}
+              className={`
+                h-12 text-sm font-medium rounded-xl
+                transition-all duration-200
+                ${time === quickTime
+                  ? 'bg-[#c4967a] text-white shadow-lg'
+                  : 'bg-[#f7d5bc]/30 text-[#3d2b1f] hover:bg-[#f7d5bc]/50'
+                }
+              `}
             >
-              <div className="py-[80px]">
-                {hourOptions.map((hour) => (
-                  <motion.button
-                    key={hour}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      w-full h-10 flex items-center justify-center text-lg font-medium
-                      transition-all duration-200 snap-center
-                      ${hours === hour
-                        ? 'text-[#3d2b1f] font-semibold scale-110'
-                        : 'text-[#9e8476] scale-100'
-                      }
-                    `}
-                  >
-                    {formatHour(hour)}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Separator */}
-          <div className="w-8 flex items-center justify-center">
-            <span className="text-2xl text-[#c4967a] font-light">:</span>
-          </div>
-
-          {/* Minutes column */}
-          <div className="flex-1 overflow-hidden relative" ref={minuteScrollRef}>
-            <div
-              className="absolute inset-0 overflow-y-auto scrollbar-hide snap-y snap-mandatory"
-              style={{ scrollSnapType: 'y mandatory' }}
-              onScroll={() => handleScroll('minutes')}
-            >
-              <div className="py-[80px]">
-                {minuteOptions.map((minute) => (
-                  <motion.button
-                    key={minute}
-                    whileTap={{ scale: 0.95 }}
-                    className={`
-                      w-full h-10 flex items-center justify-center text-lg font-medium
-                      transition-all duration-200 snap-center
-                      ${minutes === minute
-                        ? 'text-[#3d2b1f] font-semibold scale-110'
-                        : 'text-[#9e8476] scale-100'
-                      }
-                    `}
-                  >
-                    {formatMinute(minute)}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </div>
+              {quickTime}
+            </motion.button>
+          ))}
         </div>
       </motion.div>
     </div>
