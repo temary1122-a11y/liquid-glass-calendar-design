@@ -4,7 +4,7 @@
    GLOBAL FONT
 ───────────────────────────────────────── */
 * {
-  font-family: 'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', 'Comic Neue', cursive, sans-serif;
+  font-family: Arial, sans-serif;
   box-sizing: border-box;
 }
 
