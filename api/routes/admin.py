@@ -123,7 +123,7 @@ async def delete_time_slot_endpoint(req: Request, request: DeleteTimeSlotRequest
 
 @router.get("/work-days", response_model=list[WorkDayInfo])
 @limiter.limit("200/minute")
-async def get_work_days_endpoint(req: Request, x_admin_id: int = Header(None)):
+async def get_work_days_endpoint(request: Request, x_admin_id: int = Header(None)):
     """Получить все рабочие дни"""
     await verify_admin(x_admin_id)
 
