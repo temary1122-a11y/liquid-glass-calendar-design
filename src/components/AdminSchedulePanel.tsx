@@ -682,19 +682,6 @@ export default function AdminSchedulePanel() {
         <h2 className="text-[#3d2b1f] font-semibold text-base">
           Панель мастера
         </h2>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            vibrate(VIBRATION_PATTERNS.DELETE);
-            localStorage.removeItem('lash_bot_clients');
-            window.location.reload();
-          }}
-          className="text-[9px] text-[#9e8476] hover:text-[#c4967a] transition-colors"
-          title="Сбросить данные (dev)"
-        >
-          🔄 Сброс
-        </motion.button>
       </div>
 
       {/* ── Tab switcher ── */}
