@@ -88,6 +88,8 @@ async def main() -> None:
     if BOT_TOKEN:
         token_preview = BOT_TOKEN[:10] + "..." + BOT_TOKEN[-10:] if len(BOT_TOKEN) > 20 else BOT_TOKEN
         logger.info(f"BOT_TOKEN loaded: {token_preview}")
+        logger.info(f"BOT_TOKEN repr: {repr(BOT_TOKEN)}")  # Проверка на невидимые символы
+        logger.info(f"BOT_TOKEN length: {len(BOT_TOKEN)}")
     else:
         logger.error("BOT_TOKEN is empty or None!")
 
