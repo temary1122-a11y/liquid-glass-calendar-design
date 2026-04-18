@@ -12,40 +12,51 @@ type View = 'client' | 'admin';
 export default function App() {
   const [view, setView] = useState<View>('client');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{userId: number; adminId: number; isAdmin: boolean; source: string} | null>(null);
 
   // Проверяем admin_id из Telegram WebApp initData
   useEffect(() => {
     // Получаем user_id из Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
-    console.log('Telegram WebApp:', tg);
-    console.log('InitDataUnsafe:', tg?.initDataUnsafe);
 
     if (tg?.initDataUnsafe?.user) {
       const userId = tg.initDataUnsafe.user.id;
       const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
-      console.log('User ID from Telegram:', userId);
-      console.log('Admin ID from config:', adminId);
-      console.log('Is admin?', userId === adminId);
+      const isAdminUser = userId === adminId;
 
-      setIsAdmin(userId === adminId);
+      setIsAdmin(isAdminUser);
       // Если не админ, сбрасываем view на client
-      if (userId !== adminId) {
+      if (!isAdminUser) {
         setView('client');
       }
+
+      // Сохраняем debug info для отображения
+      setDebugInfo({
+        userId,
+        adminId,
+        isAdmin: isAdminUser,
+        source: 'telegram'
+      });
     } else {
       // Для разработки: проверяем через config
       const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
       // В dev режиме можно задать через localStorage для тестирования
       const devUserId = parseInt(localStorage.getItem('dev_user_id') || '0');
-      console.log('Dev user ID from localStorage:', devUserId);
-      console.log('Admin ID from config:', adminId);
-      console.log('Is admin (dev)?', devUserId === adminId);
+      const isAdminUser = devUserId === adminId;
 
-      setIsAdmin(devUserId === adminId);
+      setIsAdmin(isAdminUser);
       // Если не админ, сбрасываем view на client
-      if (devUserId !== adminId) {
+      if (!isAdminUser) {
         setView('client');
       }
+
+      // Сохраняем debug info для отображения
+      setDebugInfo({
+        userId: devUserId,
+        adminId,
+        isAdmin: isAdminUser,
+        source: 'localStorage'
+      });
     }
   }, []);
 
@@ -89,6 +100,11 @@ export default function App() {
               <p className="text-[#9e8476] text-[11px]">
                 {view === 'client' ? 'Запись онлайн' : 'Режим мастера'}
               </p>
+              {debugInfo && (
+                <p className="text-[#9e8476] text-[9px] mt-1">
+                  {debugInfo.source}: {debugInfo.userId} vs {debugInfo.adminId} ({debugInfo.isAdmin ? 'admin' : 'client'})
+                </p>
+              )}
             </div>
           </div>
 
