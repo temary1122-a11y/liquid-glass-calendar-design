@@ -1,4 +1,7 @@
 // ─── Vibration utilities for Telegram WebApp Haptic Feedback ────────────────
+// ВАЖНО: impactOccurred и selectionChanged НЕ РАБОТАЮТ на Android (баг Telegram)
+// Используем только notificationOccurred для совместимости с Android и iOS
+// GitHub issue: https://github.com/Telegram-Mini-Apps/issues/issues/28
 
 /**
  * Получает Telegram WebApp Haptic Feedback API
@@ -18,14 +21,14 @@ export const isVibrationSupported = (): boolean => {
 
 /**
  * Легкая вибрация (tap, click)
- * Использует Telegram.WebApp.HapticFeedback.impactOccurred('light')
+ * Использует notificationOccurred('success') для совместимости с Android
  */
 export const vibrateLight = (): void => {
   const haptic = getHapticFeedback();
   console.log('vibrateLight called, haptic:', !!haptic);
   if (haptic) {
     try {
-      haptic.impactOccurred('light');
+      haptic.notificationOccurred('success');
       console.log('vibrateLight executed');
     } catch (error) {
       console.warn('Haptic feedback error:', error);
@@ -37,13 +40,13 @@ export const vibrateLight = (): void => {
 
 /**
  * Средняя вибрация (button press, selection)
- * Использует Telegram.WebApp.HapticFeedback.impactOccurred('medium')
+ * Использует notificationOccurred('success') для совместимости с Android
  */
 export const vibrateMedium = (): void => {
   const haptic = getHapticFeedback();
   if (haptic) {
     try {
-      haptic.impactOccurred('medium');
+      haptic.notificationOccurred('success');
     } catch (error) {
       console.warn('Haptic feedback error:', error);
     }
@@ -52,13 +55,13 @@ export const vibrateMedium = (): void => {
 
 /**
  * Сильная вибрация (success, confirmation)
- * Использует Telegram.WebApp.HapticFeedback.impactOccurred('heavy')
+ * Использует notificationOccurred('success') для совместимости с Android
  */
 export const vibrateStrong = (): void => {
   const haptic = getHapticFeedback();
   if (haptic) {
     try {
-      haptic.impactOccurred('heavy');
+      haptic.notificationOccurred('success');
     } catch (error) {
       console.warn('Haptic feedback error:', error);
     }
@@ -112,13 +115,14 @@ export const vibrateWarning = (): void => {
 
 /**
  * Вибрация навигации (swipe, transition)
- * Использует Telegram.WebApp.HapticFeedback.selectionChanged()
+ * Использует notificationOccurred('success') для совместимости с Android
+ * selectionChanged НЕ РАБОТАЕТ на Android
  */
 export const vibrateNavigation = (): void => {
   const haptic = getHapticFeedback();
   if (haptic) {
     try {
-      haptic.selectionChanged();
+      haptic.notificationOccurred('success');
     } catch (error) {
       console.warn('Haptic feedback error:', error);
     }
