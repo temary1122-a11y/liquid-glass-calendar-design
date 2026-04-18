@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   // Bot Configuration
   readonly VITE_BOT_TOKEN?: string;
   readonly VITE_ADMIN_ID?: string;
+  readonly VITE_ADMIN_USERNAME?: string;
   readonly VITE_CHANNEL_ID?: string;
   readonly VITE_SCHEDULE_CHANNEL_ID?: string;
 }

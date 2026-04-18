@@ -70,6 +70,7 @@ export const CONTACT_INFO = {
   ADDRESS: 'г. Москва, ул. Примерная, д. 1',
   PHONE: '+7 (999) 123-45-67',
   TELEGRAM_USERNAME: '@yourusername',
+  ADMIN_USERNAME: import.meta.env.VITE_ADMIN_USERNAME || 'lashessoto4ka',
 };
 
 // ── Ссылки на соцсети и посты ─────────────────────────────────

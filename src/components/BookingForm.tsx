@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Check, Phone, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { CONTACT_INFO } from '../config';
 
 interface BookingFormProps {
   date: Date;
@@ -44,14 +45,13 @@ export default function BookingForm({ date, time, availableSlots, onTimeChange, 
 
     try {
       // Формируем сообщение для Telegram
-      const message = `Здравствуйте, запишите пожалуйста на ${format(date, 'd MMMM', { locale: ru })} на ${time}`;
-      
+      const message = `Здравствуйте, запишите пожалуйста на ${format(date, 'd MMMM', { locale: ru })} на ${time}\n\nИмя: ${name}\nТелефон: ${phone}`;
+
       // Перенаправляем в личные сообщения администратора
-      // TODO: Заменить на реальный username администратора
-      const adminUsername = 'admin_username'; // Заменить на реальный
+      const adminUsername = CONTACT_INFO.ADMIN_USERNAME.replace('@', ''); // Убираем @ если есть
       const telegramUrl = `https://t.me/${adminUsername}?text=${encodeURIComponent(message)}`;
       window.open(telegramUrl, '_blank');
-      
+
       onClose();
     } finally {
       setIsSubmitting(false);
