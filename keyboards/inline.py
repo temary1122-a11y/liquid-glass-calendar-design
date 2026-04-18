@@ -5,7 +5,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from config import CHANNEL_LINK, PORTFOLIO_LINK, MINI_APP_URL
+from config import PORTFOLIO_LINK, MINI_APP_URL
 
 
 # ────────────────────────────────────────────────────────────
@@ -16,20 +16,6 @@ def main_menu_kb() -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="📅 Записаться", web_app=WebAppInfo(url=MINI_APP_URL)))
     builder.row(InlineKeyboardButton(text="📋 Моя запись", callback_data="my_booking"))
     builder.row(InlineKeyboardButton(text="❌ Отменить запись", callback_data="cancel_booking"))
-    return builder.as_markup()
-
-
-# ────────────────────────────────────────────────────────────
-# Проверка подписки
-# ────────────────────────────────────────────────────────────
-def subscription_check_kb() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(text="📢 Подписаться", url=CHANNEL_LINK)
-    )
-    builder.row(
-        InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")
-    )
     return builder.as_markup()
 
 

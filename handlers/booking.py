@@ -27,7 +27,6 @@ from keyboards import (
 from keyboards.calendars import build_calendar
 from utils import (
     notify_admin,
-    post_to_schedule_channel,
     booking_text,
     admin_booking_notification,
     channel_booking_text,
@@ -289,17 +288,6 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
             slot_time=data["selected_time"],
             username=callback.from_user.username,
             user_id=callback.from_user.id,
-            booking_id=booking_id,
-        )
-    )
-
-    # ── Публикация в канал расписания ─────────────────────────
-    await post_to_schedule_channel(
-        bot,
-        channel_booking_text(
-            client_name=data["client_name"],
-            day_date=data["selected_date"],
-            slot_time=data["selected_time"],
             booking_id=booking_id,
         )
     )

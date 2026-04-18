@@ -1,7 +1,6 @@
 # keyboards/__init__.py
 from .inline import (
     main_menu_kb,
-    subscription_check_kb,
     portfolio_kb,
     time_slots_kb,
     confirm_booking_kb,
