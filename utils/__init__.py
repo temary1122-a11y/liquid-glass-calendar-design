@@ -5,8 +5,6 @@ from .helpers import (
     admin_booking_notification,
     channel_booking_text,
     notify_admin,
-    post_to_schedule_channel,
-    check_subscription,
     safe_answer,
 )
 from .scheduler import scheduler, schedule_reminder, cancel_reminder, restore_reminders_from_db

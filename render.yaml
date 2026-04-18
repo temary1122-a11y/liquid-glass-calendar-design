@@ -2,7 +2,7 @@ services:
   - type: web
     name: lash-bot-backend
     env: python
-    runtime: python3.13
+    runtime: python3.12
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn api.app:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -10,9 +10,5 @@ services:
         sync: false
       - key: ADMIN_ID
         sync: false
-      - key: CHANNEL_ID
-        sync: false
-      - key: SCHEDULE_CHANNEL_ID
-        sync: false
-      - key: CHANNEL_LINK
+      - key: ADMIN_USERNAME
         sync: false

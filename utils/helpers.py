@@ -8,7 +8,7 @@ from datetime import datetime
 from aiogram import Bot
 from aiogram.types import Message, CallbackQuery
 
-from config import ADMIN_ID, SCHEDULE_CHANNEL_ID
+from config import ADMIN_ID
 
 logger = logging.getLogger(__name__)
 
@@ -112,30 +112,6 @@ async def notify_admin(bot: Bot, text: str) -> None:
         await bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode="HTML")
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления администратору: {e}")
-
-
-async def post_to_schedule_channel(bot: Bot, text: str) -> None:
-    """Публикует сообщение в канал расписания."""
-    try:
-        await bot.send_message(
-            chat_id=SCHEDULE_CHANNEL_ID, text=text, parse_mode="HTML"
-        )
-    except Exception as e:
-        logger.error(f"Ошибка публикации в канал расписания: {e}")
-
-
-async def check_subscription(bot: Bot, user_id: int, channel_id: str) -> bool:
-    """
-    Проверяет, подписан ли пользователь на канал.
-    Использует getChatMember API.
-    """
-    try:
-        member = await bot.get_chat_member(chat_id=channel_id, user_id=user_id)
-        return member.status in ("member", "administrator", "creator")
-    except Exception as e:
-        logger.warning(f"Ошибка проверки подписки для {user_id}: {e}")
-        # Если канал не найден или бот не является участником — разрешаем доступ
-        return True
 
 
 async def safe_answer(callback: CallbackQuery, text: str, **kwargs) -> None:

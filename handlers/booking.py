@@ -10,7 +10,6 @@ from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
-from config import CHANNEL_ID
 from states import BookingStates
 from database import (
     get_available_days,

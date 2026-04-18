@@ -55,9 +55,6 @@ export const MESSAGE_TEMPLATES = {
 
 // ── Контактная информация ───────────────────────────────────────
 export const CONTACT_INFO = {
-  ADDRESS: 'г. Москва, ул. Примерная, д. 1',
-  PHONE: '+7 (999) 123-45-67',
-  TELEGRAM_USERNAME: '@yourusername',
   ADMIN_USERNAME: import.meta.env.VITE_ADMIN_USERNAME || '@SotkaLashes',
 };
 
@@ -86,10 +83,4 @@ export const BOT_CONFIG = {
 
   // ID администратора (получить у @userinfobot)
   ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '1834686956',
-
-  // ID канала для обязательной подписки
-  CHANNEL_ID: import.meta.env.VITE_CHANNEL_ID || '@your_channel',
-
-  // ID канала для публикации расписания
-  SCHEDULE_CHANNEL_ID: import.meta.env.VITE_SCHEDULE_CHANNEL_ID || '@your_schedule_channel',
 };

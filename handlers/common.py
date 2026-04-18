@@ -9,7 +9,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 
-from config import CHANNEL_ID, ADMIN_ID, PRICES_POST_LINK
+from config import ADMIN_ID, PRICES_POST_LINK
 from keyboards import main_menu_kb, admin_menu_kb, back_to_main_kb
 
 logger = logging.getLogger(__name__)
