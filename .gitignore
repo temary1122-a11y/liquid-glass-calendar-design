@@ -1,0 +1,46 @@
+# Конфиденциальные данные
+.env
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv
+
+# Node.js
+node_modules/
+dist/
+.nuxt/
+.cache/
+.parcel-cache/
+.vercel/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Railway
+railway.toml
+
+# Ngrok
+NGROK_TOKEN.txt
+
+# Build
+build/

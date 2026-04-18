@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────
+   GLOBAL FONT
+───────────────────────────────────────── */
+* {
+  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+  box-sizing: border-box;
+}
+
+/* ─────────────────────────────────────────
+   DESIGN TOKENS (CSS Variables)
+───────────────────────────────────────── */
+:root {
+  /* Warm palette */
+  --warm-card:          255, 249, 244;   /* rgb */
+  --warm-slot-bg:       255, 244, 234;
+  --warm-slot-light:    255, 250, 245;
+  --warm-slot-text:     #8b6049;
+  --warm-text:          #3d2b1f;
+  --warm-text-secondary:#9e8476;
+  --warm-brown:         #7c5340;
+  --warm-brown-2:       #a07060;
+  --warm-brown-3:       #c4967a;
+  --warm-emerald:       #2e7d5e;
+  --warm-bg-from:       #fdf4ed;
+  --warm-bg-via:        #fbede1;
+  --warm-bg-to:         #f7e4d4;
+}
+
+/* ─────────────────────────────────────────
+   LIQUID GLASS EFFECTS
+───────────────────────────────────────── */
+.liquid-glass-calendar {
+  backdrop-filter: blur(3px) saturate(85%);
+  -webkit-backdrop-filter: blur(3px) saturate(85%);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 28px;
+}
+
+.liquid-glass-admin {
+  backdrop-filter: blur(3px) saturate(85%);
+  -webkit-backdrop-filter: blur(3px) saturate(85%);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 28px;
+}
+
+.liquid-glass-nav {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.liquid-glass-slot {
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  background: rgba(255, 244, 234, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.liquid-glass-tab {
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ─────────────────────────────────────────
+   WARM BACKGROUND GRADIENT
+───────────────────────────────────────── */
+.warm-bg {
+  background: linear-gradient(
+    135deg,
+    #fdf4ed 0%,
+    #fbede1 35%,
+    #f7e4d4 65%,
+    #f2d9c7 100%
+  );
+}
+
+/* ─────────────────────────────────────────
+   GLASS HIGHLIGHT SHIMMER
+───────────────────────────────────────── */
+.glass-highlight {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+}
+
+/* ─────────────────────────────────────────
+   SCROLLBAR HIDE
+───────────────────────────────────────── */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─────────────────────────────────────────
+   SAFE AREA (Telegram Mini App)
+───────────────────────────────────────── */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* ─────────────────────────────────────────
+   PULSE DOT
+───────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.85); }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────
+   STICKER BOUNCE
+───────────────────────────────────────── */
+@keyframes sticker-bounce {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%       { transform: translateY(-4px) rotate(-3deg); }
+}
+.sticker-bounce {
+  animation: sticker-bounce 3s ease-in-out infinite;
+}
