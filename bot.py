@@ -66,6 +66,7 @@ async def set_bot_commands(bot: Bot) -> None:
         BotCommand(command="mybooking", description="📋 Моя запись"),
         BotCommand(command="prices", description="💰 Прайсы"),
         BotCommand(command="admin", description="⚙️ Админ-панель"),
+        BotCommand(command="backup", description="📦 Бэкап БД (админ)"),
     ]
     
     try:

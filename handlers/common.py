@@ -3,6 +3,7 @@
 # ============================================================
 
 import logging
+from datetime import datetime
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command
@@ -104,6 +105,31 @@ async def cmd_prices(message: Message):
         reply_markup=back_to_main_kb()
     )
     await message.answer(PRICES_POST_LINK)
+
+
+# /backup — скачать БД (только для админа)
+# ────────────────────────────────────────────────────────────
+@router.message(Command("backup"))
+async def cmd_backup(message: Message):
+    """Скачать БД файл (только для админа)."""
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("⛔ У вас нет доступа к этой команде.")
+        return
+
+    from config import DB_PATH
+    import os
+
+    if not os.path.exists(DB_PATH):
+        await message.answer("❌ Файл БД не найден.")
+        return
+
+    try:
+        await message.answer_document(
+            document=open(DB_PATH, "rb"),
+            caption=f"📦 Бэкап БД от {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
+    except Exception as e:
+        await message.answer(f"❌ Ошибка при отправке БД: {e}")
 
 
 # ────────────────────────────────────────────────────────────
