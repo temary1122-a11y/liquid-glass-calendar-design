@@ -6,11 +6,11 @@
   "env": {
     "VITE_BACKEND_URL": "https://liquid-glass-calendar-design.onrender.com",
     "VITE_PRICES_POST_LINK": "https://t.me/lashessoto4ka/285",
-    "VITE_TIKTOK_LINK": "https://tiktok.com/@yourusername",
-    "VITE_INSTAGRAM_LINK": "https://instagram.com/yourusername",
-    "VITE_BOT_TOKEN": "",
-    "VITE_ADMIN_ID": "8736987138",
-    "VITE_CHANNEL_ID": "@your_channel",
-    "VITE_SCHEDULE_CHANNEL_ID": "@your_schedule_channel"
+    "VITE_TIKTOK_LINK": "https://tiktok.com/@lashessoto4ka",
+    "VITE_INSTAGRAM_LINK": "https://instagram.com/lashessoto4ka",
+    "VITE_BOT_TOKEN": "8736987138:AAG2PA8dzsaImFCJbIpc4w7OMPR5MRuTuC4",
+    "VITE_ADMIN_ID": "5542342439",
+    "VITE_CHANNEL_ID": "@lashessoto4ka",
+    "VITE_SCHEDULE_CHANNEL_ID": "@lashessoto4ka"
   }
 }
