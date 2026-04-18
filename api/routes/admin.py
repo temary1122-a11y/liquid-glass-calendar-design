@@ -214,7 +214,7 @@ async def delete_work_day_endpoint(request: Request, body: DeleteWorkDayRequest,
 
 
 @router.post("/cleanup-database")
-@limiter.limit("10/hour")
+@limiter.limit("10/hour", key_func=lambda: "cleanup")
 async def cleanup_database_endpoint(request: Request, x_admin_id: int = Header(None)):
     """Полностью очистить базу данных"""
     await verify_admin(x_admin_id)
