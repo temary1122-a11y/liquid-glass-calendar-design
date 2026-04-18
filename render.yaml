@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lash-bot-backend
+    name: lash-bot-api
     env: python
     runtime: python3.12
     buildCommand: pip install -r requirements.txt
@@ -12,3 +12,19 @@ services:
         sync: false
       - key: ADMIN_USERNAME
         sync: false
+
+  - type: worker
+    name: lash-bot
+    env: python
+    runtime: python3.12
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite:///lash_bot.db

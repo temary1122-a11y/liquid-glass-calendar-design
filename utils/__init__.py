@@ -4,6 +4,7 @@ from .helpers import (
     booking_text,
     admin_booking_notification,
     channel_booking_text,
+    client_confirmation_text,
     notify_admin,
     safe_answer,
 )
