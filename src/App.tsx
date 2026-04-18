@@ -4,6 +4,7 @@ import { Sparkles, Settings, Calendar as CalendarIcon } from 'lucide-react';
 import Calendar from './components/Calendar';
 import AdminSchedulePanel from './components/AdminSchedulePanel';
 import { SOCIAL_LINKS, BOT_CONFIG } from './config';
+import { vibrateMedium } from './utils/vibration';
 
 // ─── View type ────────────────────────────────────────────────────────────────
 type View = 'client' | 'admin';
@@ -12,7 +13,6 @@ type View = 'client' | 'admin';
 export default function App() {
   const [view, setView] = useState<View>('client');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<{userId: number; adminId: number; isAdmin: boolean; source: string} | null>(null);
 
   // Проверяем admin_id из Telegram WebApp initData
   useEffect(() => {
@@ -41,13 +41,6 @@ export default function App() {
       console.log('Admin mode via URL parameter');
       setIsAdmin(true);
       setView('admin');
-
-      setDebugInfo({
-        userId: parseInt(BOT_CONFIG.ADMIN_ID),
-        adminId: parseInt(BOT_CONFIG.ADMIN_ID),
-        isAdmin: true,
-        source: 'url-param'
-      });
       return;
     }
 
@@ -69,27 +62,12 @@ export default function App() {
       if (!isAdminUser) {
         setView('client');
       }
-
-      // Сохраняем debug info для отображения
-      setDebugInfo({
-        userId,
-        adminId,
-        isAdmin: isAdminUser,
-        source: 'telegram'
-      });
     } else {
       // Если Telegram WebApp недоступен или нет user - считаем клиентом
       // Это может быть если открыли в обычном браузере
       console.log('No user data found, treating as client');
       setIsAdmin(false);
       setView('client');
-
-      setDebugInfo({
-        userId: 0,
-        adminId: parseInt(BOT_CONFIG.ADMIN_ID),
-        isAdmin: false,
-        source: 'no-telegram'
-      });
     }
   }, []);
 
@@ -127,17 +105,12 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="text-2xl select-none sticker-bounce" aria-hidden>🎀</span>
             <div>
-              <h1 className="text-[#3d2b1f] text-base font-semibold leading-tight">
+              <h1 className="text-[#3d2b1f] text-lg font-semibold leading-tight">
                 YourLashes
               </h1>
-              <p className="text-[#9e8476] text-[11px]">
+              <p className="text-[#9e8476] text-sm">
                 {view === 'client' ? 'Запись онлайн' : 'Режим мастера'}
               </p>
-              {debugInfo && (
-                <p className="text-[#9e8476] text-[9px] mt-1">
-                  {debugInfo.source}: {debugInfo.userId} vs {debugInfo.adminId} ({debugInfo.isAdmin ? 'admin' : 'client'})
-                </p>
-              )}
             </div>
           </div>
 
@@ -145,7 +118,10 @@ export default function App() {
           {isAdmin && (
             <motion.button
               whileTap={{ scale: 0.90 }}
-              onClick={() => setView(v => v === 'client' ? 'admin' : 'client')}
+              onClick={() => {
+                vibrateMedium();
+                setView(v => v === 'client' ? 'admin' : 'client');
+              }}
               className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
                 text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
               title={view === 'client' ? 'Режим мастера' : 'Режим клиента'}

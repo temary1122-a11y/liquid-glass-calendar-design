@@ -17,6 +17,7 @@ import {
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
+import { vibrateMedium, vibrateNavigation } from '../utils/vibration';
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 // Тестовые данные удалены - слоты загружаются из API
@@ -241,11 +242,13 @@ export default function Calendar() {
   const days = getMonthDays(currentMonth);
 
   const prevMonth = useCallback(() => {
+    vibrateNavigation();
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
     setExpandedWeek(false);
   }, []);
 
   const nextMonth = useCallback(() => {
+    vibrateNavigation();
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
     setExpandedWeek(false);
   }, []);
@@ -259,7 +262,7 @@ export default function Calendar() {
   });
 
   return (
-    <div className="liquid-glass-calendar p-4 w-full" {...swipeHandlers}>
+    <div className="liquid-glass-calendar p-5 w-full" {...swipeHandlers}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
         <NavButton direction="left" onClick={prevMonth} />
@@ -269,7 +272,7 @@ export default function Calendar() {
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.20 }}
-          className="text-[#3d2b1f] font-semibold text-sm capitalize"
+          className="text-[#3d2b1f] font-semibold text-base capitalize"
         >
           {format(currentMonth, 'LLLL yyyy', { locale: ru })}
         </motion.span>
@@ -303,6 +306,7 @@ export default function Calendar() {
               onExpand={() => setExpandedWeek(true)}
               onCollapse={() => setExpandedWeek(false)}
               onSlotClick={time => {
+                vibrateMedium();
                 setSelectedSlot({ date, time, availableSlots: slots });
                 setBookingFormOpen(true);
               }}
