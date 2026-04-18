@@ -109,12 +109,12 @@ async def add_time_slot_endpoint(request: Request, body: AddTimeSlotRequest, x_a
 
 @router.post("/delete-time-slot")
 @limiter.limit("200/minute")
-async def delete_time_slot_endpoint(req: Request, request: DeleteTimeSlotRequest, x_admin_id: int = Header(None)):
+async def delete_time_slot_endpoint(request: Request, body: DeleteTimeSlotRequest, x_admin_id: int = Header(None)):
     """Удалить временной слот"""
     await verify_admin(x_admin_id)
-    print(f"DEBUG delete-time-slot: request={request}, x_admin_id={x_admin_id}")
+    print(f"DEBUG delete-time-slot: body={body}, x_admin_id={x_admin_id}")
 
-    success = delete_time_slot(request.date, request.time)
+    success = delete_time_slot(body.date, body.time)
     if success:
         return {"success": True, "message": "Слот удалён"}
     else:
@@ -150,7 +150,7 @@ async def get_work_days_endpoint(request: Request, x_admin_id: int = Header(None
 
 @router.get("/bookings/{date}")
 @limiter.limit("200/minute")
-async def get_bookings_for_date(req: Request, date: str, x_admin_id: int = Header(None)):
+async def get_bookings_for_date(request: Request, date: str, x_admin_id: int = Header(None)):
     """Получить записи на конкретную дату"""
     await verify_admin(x_admin_id)
 
@@ -181,10 +181,10 @@ async def get_bookings_for_date(req: Request, date: str, x_admin_id: int = Heade
 
 @router.post("/close-day")
 @limiter.limit("200/minute")
-async def close_day_endpoint(req: Request, request: dict, x_admin_id: int = Header(None)):
+async def close_day_endpoint(request: Request, body: dict, x_admin_id: int = Header(None)):
     """Закрыть рабочий день"""
     await verify_admin(x_admin_id)
-    date = request.get("date")
+    date = body.get("date")
     if not date:
         raise HTTPException(status_code=422, detail="date is required")
     close_day(date)
@@ -193,10 +193,10 @@ async def close_day_endpoint(req: Request, request: dict, x_admin_id: int = Head
 
 @router.post("/open-day")
 @limiter.limit("200/minute")
-async def open_day_endpoint(req: Request, request: dict, x_admin_id: int = Header(None)):
+async def open_day_endpoint(request: Request, body: dict, x_admin_id: int = Header(None)):
     """Открыть рабочий день"""
     await verify_admin(x_admin_id)
-    date = request.get("date")
+    date = body.get("date")
     if not date:
         raise HTTPException(status_code=422, detail="date is required")
     open_day(date)
@@ -205,10 +205,10 @@ async def open_day_endpoint(req: Request, request: dict, x_admin_id: int = Heade
 
 @router.post("/delete-work-day")
 @limiter.limit("200/minute")
-async def delete_work_day_endpoint(req: Request, request: DeleteWorkDayRequest, x_admin_id: int = Header(None)):
+async def delete_work_day_endpoint(request: Request, body: DeleteWorkDayRequest, x_admin_id: int = Header(None)):
     """Удалить рабочий день"""
     await verify_admin(x_admin_id)
-    success = delete_work_day(request.day_date)
+    success = delete_work_day(body.day_date)
     if success:
         return {"success": True, "message": "Рабочий день удалён"}
     else:
@@ -217,7 +217,7 @@ async def delete_work_day_endpoint(req: Request, request: DeleteWorkDayRequest, 
 
 @router.post("/cleanup-database")
 @limiter.limit("10/hour")
-async def cleanup_database_endpoint(req: Request, x_admin_id: int = Header(None)):
+async def cleanup_database_endpoint(request: Request, x_admin_id: int = Header(None)):
     """Полностью очистить базу данных"""
     await verify_admin(x_admin_id)
 
