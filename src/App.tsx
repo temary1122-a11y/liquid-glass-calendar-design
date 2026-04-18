@@ -16,6 +16,10 @@ export default function App() {
 
   // Проверяем admin_id из Telegram WebApp initData
   useEffect(() => {
+    // Проверяем параметр URL ?admin=true
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdminParam = urlParams.get('admin') === 'true';
+
     // Инициализируем Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
     console.log('=== Telegram WebApp Debug ===');
@@ -25,10 +29,26 @@ export default function App() {
     console.log('initData:', tg?.initData);
     console.log('user from initDataUnsafe:', tg?.initDataUnsafe?.user);
     console.log('user from initData:', tg?.initDataUser);
+    console.log('URL param admin:', isAdminParam);
 
     if (tg) {
       tg.ready();
       tg.expand();
+    }
+
+    // Если есть параметр ?admin=true - считаем админом
+    if (isAdminParam) {
+      console.log('Admin mode via URL parameter');
+      setIsAdmin(true);
+      setView('admin');
+
+      setDebugInfo({
+        userId: parseInt(BOT_CONFIG.ADMIN_ID),
+        adminId: parseInt(BOT_CONFIG.ADMIN_ID),
+        isAdmin: true,
+        source: 'url-param'
+      });
+      return;
     }
 
     // Получаем user_id из Telegram WebApp

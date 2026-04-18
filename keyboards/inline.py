@@ -91,7 +91,7 @@ def back_to_main_kb() -> InlineKeyboardMarkup:
 # ────────────────────────────────────────────────────────────
 def admin_menu_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="✨ Mini App", web_app=WebAppInfo(url=MINI_APP_URL)))
+    builder.row(InlineKeyboardButton(text="✨ Mini App", web_app=WebAppInfo(url=f"{MINI_APP_URL}?admin=true")))
     builder.row(InlineKeyboardButton(text="📊 История записей", callback_data="adm_show_history"))
     builder.row(InlineKeyboardButton(text=" В главное меню", callback_data="back_to_main"))
     return builder.as_markup()
