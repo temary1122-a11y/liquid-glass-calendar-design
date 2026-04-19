@@ -131,3 +131,59 @@
 .sticker-bounce {
   animation: sticker-bounce 3s ease-in-out infinite;
 }
+
+/* ─────────────────────────────────────────
+   RC TIME PICKER iOS STYLE
+───────────────────────────────────────── */
+.rc-time-picker-panel {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+.rc-time-picker-panel-input {
+  border: none !important;
+  background: transparent !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #3d2b1f !important;
+}
+
+.rc-time-picker-panel-input-wrap {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+.rc-time-picker-panel-inner {
+  font-size: 16px !important;
+}
+
+.rc-time-picker-panel-select {
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.rc-time-picker-panel-select-option {
+  padding: 8px 0 !important;
+  text-align: center !important;
+  color: #9e8476 !important;
+  font-weight: 400 !important;
+  transition: all 0.2s ease !important;
+}
+
+.rc-time-picker-panel-select-option-selected {
+  color: #2e7d5e !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+}
+
+.rc-time-picker-panel-select-option:hover {
+  background: rgba(46, 125, 94, 0.08) !important;
+}
+
+.rc-time-picker-panel-select li {
+  margin: 0 !important;
+}
