@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # Rate limiter instance
-limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.get("x-forwarded-for", ""))
+limiter = Limiter(key_func=lambda: "default")
 
 # Временное хранилище настроек (в продакшене — в БД)
 gui_settings = GUISettings(
