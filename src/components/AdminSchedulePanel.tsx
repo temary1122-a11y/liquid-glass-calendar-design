@@ -531,9 +531,10 @@ export default function AdminSchedulePanel() {
   const [activeTab, setActiveTab]   = useState<'calendar' | 'clients'>('calendar');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay]   = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
-  const { slots, addSlot, removeSlot } = useSlotsAPI();
+  const { slots, addSlot, removeSlot, error: slotsError } = useSlotsAPI();
   const { clients, addClient: addClientAPI, updateClient: updateClientAPI } = useClientsAPI();
   const { vibrate } = useVibration();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const days = getMonthDays(currentMonth);
 
@@ -616,7 +617,37 @@ export default function AdminSchedulePanel() {
   return (
     <div className="liquid-glass-admin p-4 w-full">
 
-      {/* ── Header ── */}
+      {/* Mobile Messages */}
+      <AnimatePresence>
+        {slotsError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-800 text-xs mb-4"
+          >
+            <div className="font-semibold">ERROR:</div>
+            <div className="mt-1">{slotsError}</div>
+            <div className="mt-2 text-red-600">
+              Backend: {import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com'}
+            </div>
+          </motion.div>
+        )}
+
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-800 text-xs mb-4"
+          >
+            <div className="font-semibold">SUCCESS:</div>
+            <div className="mt-1">{successMessage}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[#3d2b1f] font-semibold text-base">
           Панель мастера
