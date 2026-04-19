@@ -242,22 +242,18 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
       </div>
 
       {/* ── Time Picker (iOS-style) ── */}
-      <AnimatePresence>
-        {pickerOpen && (
-          <TimePicker
-            value={pickerTime}
-            onChange={(time) => {
-              setPickerTime(time); // Только обновляем состояние
-            }}
-            onConfirm={() => {
-              vibrate(VIBRATION_PATTERNS.SUCCESS);
-              onAddSlot(pickerTime); // Создаем слот только при подтверждении
-              setPickerOpen(false);
-            }}
-            onClose={() => setPickerOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      <TimePicker
+        open={pickerOpen}
+        value={pickerTime}
+        onChange={(time) => {
+          setPickerTime(time); // Только обновляем состояние
+        }}
+        onConfirm={() => {
+          onAddSlot(pickerTime);
+        }}
+        onClose={() => setPickerOpen(false)}
+        title="Добавить слот"
+      />
 
       {/* ── Slots list ── */}
       <div className="flex flex-col gap-1.5">
@@ -331,19 +327,19 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
                     </div>
                     
                     {/* TimePicker для редактирования */}
-                    {editTimePickerOpen && (
-                      <TimePicker
-                        value={editForm.time}
-                        onChange={(time) => {
-                          setEditForm({ ...editForm, time }); // Только обновляем состояние
-                        }}
-                        onConfirm={() => {
-                          vibrate(VIBRATION_PATTERNS.SUCCESS);
-                          setEditTimePickerOpen(false);
-                        }}
-                        onClose={() => setEditTimePickerOpen(false)}
-                      />
-                    )}
+                    <TimePicker
+                      open={editTimePickerOpen}
+                      value={editForm.time}
+                      onChange={(time) => {
+                        setEditForm({ ...editForm, time }); // Только обновляем состояние
+                      }}
+                      onConfirm={() => {
+                        vibrate(VIBRATION_PATTERNS.SUCCESS);
+                        setEditTimePickerOpen(false);
+                      }}
+                      onClose={() => setEditTimePickerOpen(false)}
+                      title="Изменить время"
+                    />
                   </motion.div>
                 ) : (
                   <motion.div
