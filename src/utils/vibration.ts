@@ -26,14 +26,14 @@ export const isVibrationSupported = (): boolean => {
  * 1. Telegram.WebApp.HapticFeedback (Mini App)
  * 2. navigator.vibrate (обычный браузер)
  */
-const vibrate = (pattern: number | number[], type: 'telegram' | 'fallback'): void => {
+const vibrate = (pattern: string | number | number[], type: 'telegram' | 'fallback'): void => {
   const haptic = getHapticFeedback();
 
   // Приоритет: Telegram WebApp HapticFeedback
   if (haptic && type === 'telegram') {
     try {
       if (typeof pattern === 'string') {
-        haptic.notificationOccurred(pattern as any);
+        haptic.notificationOccurred(pattern as 'success' | 'error' | 'warning');
       } else {
         // Для числовых паттернов используем notificationOccurred
         haptic.notificationOccurred('success');
@@ -48,8 +48,10 @@ const vibrate = (pattern: number | number[], type: 'telegram' | 'fallback'): voi
   // Fallback: navigator.vibrate
   if ('vibrate' in navigator) {
     try {
-      navigator.vibrate(pattern);
-      console.log('navigator.vibrate executed:', pattern);
+      // Если pattern - строка, конвертируем в числовой паттерн для fallback
+      const numericPattern = typeof pattern === 'string' ? 50 : pattern;
+      navigator.vibrate(numericPattern);
+      console.log('navigator.vibrate executed:', numericPattern);
     } catch (error) {
       console.warn('navigator.vibrate error:', error);
     }

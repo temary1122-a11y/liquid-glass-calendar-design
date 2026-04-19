@@ -25,8 +25,9 @@ import {
 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import { MESSAGE_TEMPLATES } from '../config';
-import { AVAILABLE_SLOTS, MOCK_CLIENTS } from '../mockData';
+import { MOCK_CLIENTS } from '../mockData';
 import { useVibration, VIBRATION_PATTERNS } from '../hooks/useVibration';
+import { useSlotsAPI } from '../hooks/useSlotsAPI';
 import TimePicker from './TimePicker';
 
 const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -535,7 +536,7 @@ export default function AdminSchedulePanel() {
   const [activeTab, setActiveTab]   = useState<'calendar' | 'clients'>('calendar');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay]   = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
-  const [slots, setSlots] = useState<Record<string, string[]>>(AVAILABLE_SLOTS);
+  const { slots, addSlot, removeSlot } = useSlotsAPI();
   const [clients, setClients] = useState(() => {
     // Очищаем тестовые данные из localStorage
     localStorage.removeItem('lash_bot_clients');
@@ -583,20 +584,6 @@ export default function AdminSchedulePanel() {
     trackTouch: true,
     delta: 50,
   });
-
-  const addSlot = (day: string, time: string) => {
-    setSlots(prev => ({
-      ...prev,
-      [day]: [...(prev[day] ?? []), time].sort(),
-    }));
-  };
-
-  const removeSlot = (day: string, time: string) => {
-    setSlots(prev => ({
-      ...prev,
-      [day]: (prev[day] ?? []).filter(t => t !== time),
-    }));
-  };
 
   const updateClient = (oldTime: string, newClient: { name: string; time: string; userId?: string; username?: string; note?: string }, isNewClient: boolean) => {
     setClients((prev: typeof MOCK_CLIENTS) => {

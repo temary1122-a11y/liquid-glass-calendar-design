@@ -76,6 +76,9 @@ export const UI_CONFIG = {
   MAX_VISIBLE_DAYS: 30,
 };
 
+// ── Backend API URL ─────────────────────────────────────────────
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 // ── Токен и ID администратора (для интеграции с ботом) ──────────
 export const BOT_CONFIG = {
   // Telegram Bot Token (получить у @BotFather)
