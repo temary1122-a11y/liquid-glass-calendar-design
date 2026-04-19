@@ -171,11 +171,17 @@ def get_all_work_days() -> list[sqlite3.Row]:
 
 
 def get_available_work_days() -> list[sqlite3.Row]:
-    """Возвращает доступные рабочие дни для клиентов (только будущие и открытые)."""
+    """Returns available work days for clients (only future, open, and with free slots)."""
     with get_conn() as conn:
-        return conn.execute(
-            "SELECT * FROM work_days WHERE day_date >= date('now','localtime') AND is_closed = 0 ORDER BY day_date"
-        ).fetchall()
+        return conn.execute("""
+            SELECT DISTINCT wd.* 
+            FROM work_days wd
+            JOIN time_slots ts ON ts.day_date = wd.day_date
+            WHERE wd.day_date >= date('now','localtime') 
+              AND wd.is_closed = 0
+              AND ts.is_booked = 0
+            ORDER BY wd.day_date
+        """).fetchall()
 
 
 def day_exists(day_date: str) -> bool:
