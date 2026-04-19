@@ -405,9 +405,41 @@ def get_cancelled_bookings() -> list[sqlite3.Row]:
     with get_conn() as conn:
         return conn.execute("""
             SELECT * FROM bookings
-            WHERE is_cancelled = 1
-            ORDER BY cancelled_at DESC
+            WHERE cancelled_at IS NOT NULL
+            ORDER BY day_date DESC, slot_time DESC
         """).fetchall()
+
+
+def update_booking(
+    booking_id: int,
+    client_name: str,
+    phone: str,
+    day_date: str,
+    slot_time: str,
+    username: Optional[str] = None,
+    note: Optional[str] = None,
+) -> Optional[sqlite3.Row]:
+    """Обновляет запись клиента."""
+    with get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE bookings
+            SET client_name=?, phone=?, day_date=?, slot_time=?, username=?, note=?
+            WHERE id=?
+        """, (client_name, phone, day_date, slot_time, username, note, booking_id))
+        conn.commit()
+        return get_booking_by_id(booking_id)
+
+
+def delete_booking(day_date: str, slot_time: str) -> bool:
+    """Удаляет запись полностью (для админ панели)."""
+    with get_conn() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM bookings WHERE day_date=? AND slot_time=?
+        """, (day_date, slot_time))
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 def user_has_active_booking(user_id: int) -> bool:

@@ -12,6 +12,8 @@ from api.models import (
     DeleteTimeSlotRequest,
     DeleteWorkDayRequest,
     WorkDayInfo,
+    AdminClientRequest,
+    DeleteClientRequest,
 )
 from database.db import (
     add_work_day,
@@ -22,6 +24,10 @@ from database.db import (
     get_all_work_days,
     close_day,
     open_day,
+    create_booking,
+    update_booking,
+    delete_booking,
+    get_bookings_for_day,
 )
 from config import ADMIN_ID
 
@@ -243,3 +249,77 @@ async def cleanup_database_endpoint(request: Request, x_admin_id: int = Header(N
         "deleted_work_days": deleted_work_days,
         "message": "База данных полностью очищена"
     }
+
+
+@router.post("/create-client")
+@limiter.limit("200/minute")
+async def create_client_endpoint(request: Request, body: AdminClientRequest, x_admin_id: int = Header(None)):
+    """Создать запись клиента через админ панель"""
+    await verify_admin(x_admin_id)
+    print(f"DEBUG create-client: body={body}, x_admin_id={x_admin_id}")
+
+    # Создаем запись с user_id=0 если это ручная запись
+    user_id = body.user_id if body.user_id else 0
+    booking = create_booking(
+        user_id=user_id,
+        username=body.username,
+        client_name=body.name,
+        phone=body.phone,
+        day_date=body.date,
+        slot_time=body.time,
+        service_id="manual",  # Ручная запись
+    )
+
+    if booking:
+        return {"success": True, "message": "Клиент добавлен", "booking_id": booking["id"]}
+    else:
+        return {"success": False, "message": "Не удалось добавить клиента"}
+
+
+@router.post("/update-client")
+@limiter.limit("200/minute")
+async def update_client_endpoint(request: Request, body: AdminClientRequest, x_admin_id: int = Header(None)):
+    """Обновить запись клиента через админ панель"""
+    await verify_admin(x_admin_id)
+    print(f"DEBUG update-client: body={body}, x_admin_id={x_admin_id}")
+
+    # Находим существующую запись
+    existing_bookings = get_bookings_for_day(body.date)
+    existing_booking = None
+    for booking in existing_bookings:
+        if booking["slot_time"] == body.time:
+            existing_booking = booking
+            break
+
+    if not existing_booking:
+        return {"success": False, "message": "Запись не найдена"}
+
+    # Обновляем запись
+    updated = update_booking(
+        booking_id=existing_booking["id"],
+        client_name=body.name,
+        phone=body.phone,
+        day_date=body.date,
+        slot_time=body.time,
+        username=body.username,
+        note=body.note,
+    )
+
+    if updated:
+        return {"success": True, "message": "Клиент обновлен"}
+    else:
+        return {"success": False, "message": "Не удалось обновить клиента"}
+
+
+@router.post("/delete-client")
+@limiter.limit("200/minute")
+async def delete_client_endpoint(request: Request, body: DeleteClientRequest, x_admin_id: int = Header(None)):
+    """Удалить запись клиента через админ панель"""
+    await verify_admin(x_admin_id)
+    print(f"DEBUG delete-client: body={body}, x_admin_id={x_admin_id}")
+
+    success = delete_booking(body.date, body.time)
+    if success:
+        return {"success": True, "message": "Клиент удален"}
+    else:
+        return {"success": False, "message": "Клиент не найден"}

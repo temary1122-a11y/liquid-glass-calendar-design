@@ -49,13 +49,14 @@ export default function TimePicker({ value, onChange, onConfirm, onClose }: Time
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm touch-none">
         <motion.div
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
           className="w-full max-w-lg"
+          onClick={(e) => e.stopPropagation()}
         >
           <TimePickerRoot
             value={time}
@@ -63,7 +64,7 @@ export default function TimePicker({ value, onChange, onConfirm, onClose }: Time
             minutes={[0, 15, 30, 45]}
             itemHeight={48}
             visibleCount={5}
-            className="bg-white/95 backdrop-blur-xl rounded-t-3xl p-6 border-t border-white/30"
+            className="bg-white/95 backdrop-blur-xl rounded-t-3xl p-6 border-t border-white/30 max-h-[60vh] overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
@@ -83,11 +84,11 @@ export default function TimePicker({ value, onChange, onConfirm, onClose }: Time
               </motion.button>
             </div>
 
-            {/* Time Picker Wheels с iOS momentum scrolling */}
-            <TimePickerWheels className="flex justify-center items-center gap-2 -webkit-overflow-scrolling: touch">
+            {/* Time Picker Wheels с улучшенной физикой */}
+            <TimePickerWheels className="flex justify-center items-center gap-2 overscroll-behavior-contain">
               <TimePickerWheel
                 type="hour"
-                className="bg-[#f7d5bc]/30 backdrop-blur-sm rounded-lg"
+                className="bg-[#f7d5bc]/30 backdrop-blur-sm rounded-lg touch-pan-y"
                 classNames={{
                   item: 'text-[#9e8476]',
                   selectedItem: 'text-[#3d2b1f] font-semibold',
@@ -98,7 +99,7 @@ export default function TimePicker({ value, onChange, onConfirm, onClose }: Time
               </TimePickerSeparator>
               <TimePickerWheel
                 type="minute"
-                className="bg-[#f7d5bc]/30 backdrop-blur-sm rounded-lg"
+                className="bg-[#f7d5bc]/30 backdrop-blur-sm rounded-lg touch-pan-y"
                 classNames={{
                   item: 'text-[#9e8476]',
                   selectedItem: 'text-[#3d2b1f] font-semibold',

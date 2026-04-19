@@ -90,3 +90,21 @@ class WorkDayInfo(BaseModel):
 class DeleteWorkDayRequest(BaseModel):
     """Запрос на удаление рабочего дня"""
     day_date: str
+
+
+class AdminClientRequest(BaseModel):
+    """Запрос на создание/обновление клиента через админ"""
+    name: str
+    phone: str
+    date: str
+    time: str
+    username: Optional[str] = None
+    user_id: Optional[int] = None
+    note: Optional[str] = None
+    status: Optional[str] = "confirmed"  # confirmed, pending
+
+
+class DeleteClientRequest(BaseModel):
+    """Запрос на удаление клиента"""
+    date: str
+    time: str

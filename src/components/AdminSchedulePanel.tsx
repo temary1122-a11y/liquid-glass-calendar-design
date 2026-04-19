@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   format,
@@ -24,10 +24,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
-import { MESSAGE_TEMPLATES } from '../config';
 import { MOCK_CLIENTS } from '../mockData';
 import { useVibration, VIBRATION_PATTERNS } from '../hooks/useVibration';
 import { useSlotsAPI } from '../hooks/useSlotsAPI';
+import { useClientsAPI } from '../hooks/useClientsAPI';
 import TimePicker from './TimePicker';
 
 const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -537,34 +537,8 @@ export default function AdminSchedulePanel() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay]   = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
   const { slots, addSlot, removeSlot } = useSlotsAPI();
-  const [clients, setClients] = useState(() => {
-    // Очищаем тестовые данные из localStorage
-    localStorage.removeItem('lash_bot_clients');
-    localStorage.removeItem('lash_bot_slots');
-
-    // Загружаем клиентов из localStorage или используем MOCK_CLIENTS
-    const saved = localStorage.getItem('lash_bot_clients');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Миграция: если у клиентов нет поля status, добавляем 'confirmed'
-        const migrated = parsed.map((client: any) => ({
-          ...client,
-          status: client.status || 'confirmed'
-        }));
-        return migrated;
-      } catch (e) {
-        return MOCK_CLIENTS;
-      }
-    }
-    return MOCK_CLIENTS;
-  });
+  const { clients, addClient: addClientAPI, updateClient: updateClientAPI } = useClientsAPI();
   const { vibrate } = useVibration();
-
-  // Сохраняем клиентов в localStorage при изменении
-  useEffect(() => {
-    localStorage.setItem('lash_bot_clients', JSON.stringify(clients));
-  }, [clients]);
 
   const days = getMonthDays(currentMonth);
 
@@ -585,79 +559,54 @@ export default function AdminSchedulePanel() {
     delta: 50,
   });
 
-  const updateClient = (oldTime: string, newClient: { name: string; time: string; userId?: string; username?: string; note?: string }, isNewClient: boolean) => {
-    setClients((prev: typeof MOCK_CLIENTS) => {
-      const dateKey = selectedDay;
-      if (!dateKey) return prev;
+  const updateClient = async (oldTime: string, newClient: { name: string; time: string; userId?: string; username?: string; note?: string }, isNewClient: boolean) => {
+    const dateKey = selectedDay;
+    if (!dateKey) return;
 
-      if (isNewClient) {
-        // Создание нового клиента
-        const newId = Math.max(...prev.map((c: typeof MOCK_CLIENTS[0]) => c.id), 0) + 1;
-        // Если есть username или userId → pending (через Telegram)
-        // Если нет → confirmed (ручная запись)
-        const hasTelegram = !!(newClient.username || newClient.userId);
-        return [
-          ...prev,
-          {
-            id: newId,
-            name: newClient.name,
-            date: dateKey,
-            time: newClient.time,
-            service: 'Запись', // Дефолтное значение
-            username: newClient.username || '',
-            userId: newClient.userId || '',
-            note: newClient.note || '',
-            status: hasTelegram ? 'pending' as const : 'confirmed' as const
-          }
-        ];
-      } else {
-        // Обновление существующего клиента
-        return prev.map((client: typeof MOCK_CLIENTS[0]) => {
-          if (client.date === dateKey && client.time === oldTime) {
-            return {
-              ...client,
-              name: newClient.name,
-              time: newClient.time,
-              username: newClient.username || '',
-              userId: newClient.userId || '',
-              note: newClient.note || ''
-            };
-          }
-          return client;
+    if (isNewClient) {
+      // Создание нового клиента через API
+      const hasTelegram = !!(newClient.username || newClient.userId);
+      await addClientAPI({
+        name: newClient.name,
+        phone: '', // Будет заполнено в форме
+        date: dateKey,
+        time: newClient.time,
+        service: 'Запись',
+        username: newClient.username,
+        userId: newClient.userId,
+        note: newClient.note,
+        status: hasTelegram ? 'pending' : 'confirmed',
+      });
+    } else {
+      // Обновление существующего клиента через API
+      const existingClient = clients.find(c => c.date === dateKey && c.time === oldTime);
+      if (existingClient) {
+        await updateClientAPI({
+          ...existingClient,
+          name: newClient.name,
+          time: newClient.time,
+          username: newClient.username,
+          userId: newClient.userId || existingClient.userId,
+          note: newClient.note,
         });
       }
-    });
+    }
   };
 
-  const confirmBooking = (clientId: number) => {
-    setClients((prev: typeof MOCK_CLIENTS) => {
-      const client = prev.find(c => c.id === clientId);
-      if (!client) return prev;
+  const confirmBooking = async (clientId: number) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
 
-      // Проверяем наличие username или userId
-      if (!client.username && !client.userId) {
-        console.error('Нет username или userId для отправки сообщения');
-        return prev;
-      }
+    // Проверяем наличие username или userId
+    if (!client.username && !client.userId) {
+      console.error('Нет username или userId для отправки сообщения');
+      return;
+    }
 
-      // Меняем статус на confirmed
-      const updated = prev.map((c: typeof MOCK_CLIENTS[0]) =>
-        c.id === clientId ? { ...c, status: 'confirmed' as const } : c
-      );
-
-      // Используем шаблон из config.ts
-      const message = MESSAGE_TEMPLATES.ADMIN_CONFIRMATION({
-        date: format(parseISO(client.date), 'd.MM'),
-        time: client.time,
-      });
-
-      const telegramUrl = client.username
-        ? `https://t.me/${client.username}`
-        : `https://t.me/user?id=${client.userId}`;
-      const fullUrl = `${telegramUrl}?text=${encodeURIComponent(message)}`;
-      window.open(fullUrl, '_blank');
-
-      return updated;
+    // Обновляем статус через API
+    await updateClientAPI({
+      ...client,
+      status: 'confirmed',
     });
   };
 
