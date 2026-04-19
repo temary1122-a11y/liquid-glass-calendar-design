@@ -77,7 +77,7 @@ export const UI_CONFIG = {
 };
 
 // ── Backend API URL ─────────────────────────────────────────────
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com';
 
 // ── Токен и ID администратора (для интеграции с ботом) ──────────
 export const BOT_CONFIG = {

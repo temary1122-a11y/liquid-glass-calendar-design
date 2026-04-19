@@ -190,20 +190,27 @@ def day_exists(day_date: str) -> bool:
 # Временные слоты
 # ────────────────────────────────────────────────────────────
 def add_time_slot(day_date: str, slot_time: str) -> bool:
-    """Добавляет слот в рабочий день. True = успех."""
+    """Adds slot to work day. Auto-creates work day if needed. True = success."""
     try:
         with get_conn() as conn:
+            # First, ensure work day exists
+            conn.execute(
+                "INSERT OR IGNORE INTO work_days (day_date, is_closed) VALUES (?, 0)",
+                (day_date,)
+            )
+            
+            # Then add the slot
             conn.execute(
                 "INSERT INTO time_slots (day_date, slot_time) VALUES (?, ?)",
                 (day_date, slot_time)
             )
-            logger.info(f"Слот добавлен: {day_date} {slot_time}")
+            logger.info(f"Slot added: {day_date} {slot_time}")
             return True
     except sqlite3.IntegrityError:
-        logger.warning(f"Слот {day_date} {slot_time} уже существует")
+        logger.warning(f"Slot {day_date} {slot_time} already exists")
         return False
     except Exception as e:
-        logger.error(f"Ошибка добавления слота {day_date} {slot_time}: {e}")
+        logger.error(f"Error adding slot {day_date} {slot_time}: {e}")
         return False
 
 

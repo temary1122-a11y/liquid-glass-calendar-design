@@ -106,10 +106,12 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
     }
   }, [ADMIN_ID]);
 
-  // Добавление слота через API
+  // Добавление// Adding slot via API
   const addSlot = useCallback(async (date: string, time: string) => {
     try {
       setError(null);
+      
+      console.log('DEBUG: Adding slot', { date, time, BACKEND_URL, ADMIN_ID });
 
       const response = await fetch(`${BACKEND_URL}/api/admin/add-time-slot`, {
         method: 'POST',
@@ -121,22 +123,35 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
         body: JSON.stringify({ date, time }),
       });
 
+      console.log('DEBUG: Response status', response.status);
+      console.log('DEBUG: Response headers', [...response.headers.entries()]);
+
+      const responseText = await response.text();
+      console.log('DEBUG: Response body', responseText);
+
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { message: responseText };
+        }
         throw new Error(errorData.message || 'Failed to add slot');
       }
 
-      // Обновляем локальное состояние
+      // Update local state
       setSlots((prev) => ({
         ...prev,
         [date]: [...(prev[date] ?? []), time].sort(),
       }));
+      
+      console.log('DEBUG: Slot added successfully', { date, time });
     } catch (err) {
       console.error('Error adding slot:', err);
       setError(err instanceof Error ? err.message : 'Failed to add slot');
       throw err;
     }
-  }, [ADMIN_ID]);
+  }, [ADMIN_ID, ADMIN_SECRET_KEY]);
 
   // Удаление слота через API
   const removeSlot = useCallback(async (date: string, time: string) => {

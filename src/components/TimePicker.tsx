@@ -110,11 +110,13 @@ export default function TimePicker({ value, onChange, onConfirm, onClose, open }
                     type="time"
                     value={localValue}
                     onChange={handleTimeChange}
+                    autoFocus
                     className="w-full px-4 py-3 text-2xl text-center text-[#3d2b1f] font-semibold bg-[#f5f0e8] border-2 border-[#e8e0d0] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 focus:border-[#c4967a]"
                     style={{
                       WebkitAppearance: "none",
                       MozAppearance: "textfield",
                     }}
+                    onClick={(e) => e.currentTarget.showPicker?.()}
                   />
                   <div className="text-[#9e8476] text-xs font-medium">
                     {localValue}
