@@ -2,7 +2,7 @@
 # api/app.py — FastAPI приложение
 # ============================================================
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,13 +10,14 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from api.routes import booking, admin
+from api.websocket import manager
 from database.db import init_db
 import json
 
 app = FastAPI(title="Lash Bot API", version="1.0.0")
 
 # Rate limiter setup
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.get("x-forwarded-for", ""))
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -86,3 +87,20 @@ async def root():
 async def health():
     """Health check"""
     return {"status": "healthy"}
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time updates"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive and receive messages
+            data = await websocket.receive_json()
+            # Echo back or handle client messages
+            await websocket.send_json({"type": "echo", "data": data})
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        manager.disconnect(websocket)

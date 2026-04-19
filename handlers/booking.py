@@ -34,6 +34,7 @@ from utils import (
     format_date_ru,
 )
 from utils.scheduler import schedule_reminder
+from utils.message_helpers import safe_edit_text, check_and_notify_active_booking
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -50,18 +51,9 @@ async def book_start(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await callback.answer()
 
     # Проверка: нет ли уже активной записи
-    if user_has_active_booking(callback.from_user.id):
-        booking = __import__("database").get_user_booking(callback.from_user.id)
-        text = (
-            f"⚠️ <b>У вас уже есть активная запись!</b>\n\n"
-            f"📅 <b>Дата:</b> {format_date_ru(booking['day_date'])}\n"
-            f"🕐 <b>Время:</b> {booking['slot_time']}\n\n"
-            f"Сначала отмените текущую запись, чтобы создать новую."
-        )
-        try:
-            await callback.message.edit_text(text, parse_mode="HTML", reply_markup=back_to_main_kb())
-        except Exception:
-            await callback.message.answer(text, parse_mode="HTML", reply_markup=back_to_main_kb())
+    if await check_and_notify_active_booking(
+        callback, callback.from_user.id, format_date_ru, back_to_main_kb
+    ):
         return
 
     # Получаем доступные даты
@@ -69,19 +61,13 @@ async def book_start(callback: CallbackQuery, state: FSMContext, bot: Bot):
     available_dates = {row["day_date"] for row in available_rows}
 
     if not available_dates:
-        try:
-            await callback.message.edit_text(
-                "😔 <b>К сожалению, свободных мест нет.</b>\n\n"
-                "Попробуйте позже или свяжитесь с мастером напрямую.",
-                parse_mode="HTML",
-                reply_markup=back_to_main_kb()
-            )
-        except Exception:
-            await callback.message.answer(
-                "😔 <b>К сожалению, свободных мест нет.</b>",
-                parse_mode="HTML",
-                reply_markup=back_to_main_kb()
-            )
+        await safe_edit_text(
+            callback,
+            "😔 <b>К сожалению, свободных мест нет.</b>\n\n"
+            "Попробуйте позже или свяжитесь с мастером напрямую.",
+            reply_markup=back_to_main_kb(),
+            parse_mode="HTML"
+        )
         return
 
     today = date.today()
@@ -90,19 +76,13 @@ async def book_start(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await state.set_state(BookingStates.choosing_date)
     await state.update_data(available_dates=list(available_dates))
 
-    try:
-        await callback.message.edit_text(
-            "📅 <b>Выберите дату записи:</b>\n\n"
-            "🟢 — доступные даты",
-            parse_mode="HTML",
-            reply_markup=calendar_kb
-        )
-    except Exception:
-        await callback.message.answer(
-            "📅 <b>Выберите дату записи:</b>",
-            parse_mode="HTML",
-            reply_markup=calendar_kb
-        )
+    await safe_edit_text(
+        callback,
+        "📅 <b>Выберите дату записи:</b>\n\n"
+        "🟢 — доступные даты",
+        reply_markup=calendar_kb,
+        parse_mode="HTML"
+    )
 
 
 # ────────────────────────────────────────────────────────────

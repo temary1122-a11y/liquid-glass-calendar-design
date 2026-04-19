@@ -2,11 +2,12 @@
 # api/routes/booking.py — Routes для записи
 # ============================================================
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request, HTTPException
+from slowapi import Limiter
 from typing import List
 from datetime import datetime, timedelta
 from pydantic import BaseModel
-from slowapi import Limiter
+from api.websocket import manager
 
 # Pydantic модель для отмены записи
 class CancelBookingRequest(BaseModel):
@@ -87,6 +88,19 @@ async def create_booking_endpoint(request: Request, booking: BookingRequest):
                 message="Слот уже занят"
             )
 
+        # Broadcast booking update to all connected clients
+        await manager.send_booking_update(
+            event_type="created",
+            booking_data={
+                "booking_id": booking_id,
+                "date": booking.date,
+                "time": booking.time,
+                "name": booking.name,
+                "phone": booking.phone,
+                "service_id": booking.service_id
+            }
+        )
+
         return BookingResponse(
             success=True,
             message="Запись успешно создана",
@@ -133,6 +147,13 @@ async def cancel_booking_endpoint(request: Request, booking_id: int):
         result = cancel_booking_by_id(booking_id)
         if result is None:
             return {"success": False, "message": "Запись не найдена"}
+
+        # Broadcast booking update to all connected clients
+        await manager.send_booking_update(
+            event_type="cancelled",
+            booking_data={"booking_id": booking_id}
+        )
+
         return {"success": True, "message": "Запись отменена"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

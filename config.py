@@ -7,29 +7,41 @@ from dotenv import load_dotenv
 
 # Загружаем .env если он существует (для локальной разработки)
 # На Render переменные окружения устанавливаются напрямую
-load_dotenv()
+import pathlib
+env_path = pathlib.Path(__file__).parent / '.env'
+env_local_path = pathlib.Path(__file__).parent / '.env.local'
+load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_local_path, override=True)
+
+# ── Валидация секретов ────────────────────────────────────────
+def validate_config():
+    """Валидация обязательных переменных окружения"""
+    required_vars = ['BOT_TOKEN', 'ADMIN_ID', 'ADMIN_SECRET_KEY']
+    for var in required_vars:
+        value = os.getenv(var)
+        if not value or value.strip() == "":
+            raise ValueError(
+                f"❌ Переменная {var} не установлена или пуста. "
+                f"Пожалуйста, проверьте файл .env"
+            )
+
+    try:
+        admin_id = int(os.getenv('ADMIN_ID'))
+    except ValueError:
+        raise ValueError("❌ ADMIN_ID должно быть целым числом")
+
+    return admin_id
+
+# Валидируем конфигурацию при импорте
+ADMIN_ID = validate_config()
+
+# ── Секретный ключ для HMAC аутентификации ───────────────────
+ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "").strip()
 
 # ── Mini App URL ─────────────────────────────────────────────
-MINI_APP_URL: str = "https://liquid-glass-calendar-design.vercel.app"
+MINI_APP_URL: str = os.getenv("MINI_APP_URL", "https://liquid-glass-calendar-design.vercel.app")
 
 # ── Токен бота (получить у @BotFather) ──────────────────────
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-
-# Если токен не найден, пробуем прочитать из .env файла напрямую
-if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-    try:
-        with open('.env', 'r') as f:
-            for line in f:
-                if line.startswith('BOT_TOKEN='):
-                    BOT_TOKEN = line.split('=', 1)[1].strip()
-                    break
-    except:
-        pass
-
-# ── ID администратора (ваш Telegram user_id) ────────────────
-ADMIN_ID: int = int(os.getenv("ADMIN_ID", "1834686956"))
-
-# ── Токен бота (с удалением пробелов и переводов строк) ───────
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip()
 
 # ── Юзернейм администратора (для редиректа в личку) ───────────
@@ -39,10 +51,10 @@ ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "@SotkaLashes")
 DB_PATH: str = os.getenv("DB_PATH", "lash_bot.db")
 
 # ── Адрес салона ─────────────────────────────────────────────
-ADDRESS: str = "Тихий переулок, 4"
+ADDRESS: str = os.getenv("ADDRESS", "Тихий переулок, 4")
 
 # ── Ссылка на портфолио ──────────────────────────────────────
-PORTFOLIO_LINK: str = "https://ru.pinterest.com/crystalwithluv/_created/"
+PORTFOLIO_LINK: str = os.getenv("PORTFOLIO_LINK", "https://ru.pinterest.com/crystalwithluv/_created/")
 
 # ── Ссылка на пост с прайсами в группе ────────────────────────
 PRICES_POST_LINK: str = os.getenv("PRICES_POST_LINK", "https://t.me/lashessoto4ka/285")

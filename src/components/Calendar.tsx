@@ -45,13 +45,13 @@ function NavButton({ onClick, direction }: NavButtonProps) {
     <motion.button
       whileTap={{ scale: 0.90 }}
       onClick={onClick}
-      className="liquid-glass-nav w-12 h-12 flex items-center justify-center rounded-2xl
+      className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
         text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
       aria-label={direction === 'left' ? 'Предыдущий месяц' : 'Следующий месяц'}
     >
       {direction === 'left'
-        ? <ChevronLeft size={20} strokeWidth={2.5} />
-        : <ChevronRight size={20} strokeWidth={2.5} />
+        ? <ChevronLeft size={18} strokeWidth={2.5} />
+        : <ChevronRight size={18} strokeWidth={2.5} />
       }
     </motion.button>
   );
@@ -67,9 +67,9 @@ function SlotButton({ time, onClick }: SlotButtonProps) {
     <motion.button
       whileTap={{ scale: 0.94 }}
       onClick={onClick}
-      className="liquid-glass-slot h-6.5 w-full px-1.5 rounded-lg
+      className="liquid-glass-slot h-5.5 w-full px-1 rounded-lg
         flex items-center justify-center
-        text-[#8b6049] text-[11px] font-semibold tracking-wide
+        text-[#8b6049] text-[10px] font-semibold tracking-wide
         hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)]
         transition-all duration-200 select-none"
     >
@@ -108,11 +108,11 @@ function CollapseButton({ onClick }: CollapseButtonProps) {
     <motion.button
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className="absolute bottom-0 left-1 right-1 h-4.5 flex items-center justify-center
+      className="absolute bottom-0 left-1 right-1 h-3.5 flex items-center justify-center
         text-[#c4967a] hover:text-[#a07060]
         transition-colors duration-200 select-none"
     >
-      <ChevronUp size={11} strokeWidth={2.5} />
+      <ChevronUp size={9} strokeWidth={2.5} />
     </motion.button>
   );
 }
@@ -148,7 +148,7 @@ function DayCard({
 
   if (!isCurrentMonth) {
     return (
-      <div className="rounded-3xl min-h-[110px]" />
+      <div className="rounded-3xl min-h-[90px]" />
     );
   }
 
@@ -158,7 +158,7 @@ function DayCard({
       layoutId={dateKey}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className={`
-        relative rounded-3xl p-2 pb-1.5 min-h-[110px]
+        relative rounded-3xl p-1 pb-0.5 min-h-[90px]
         liquid-glass-calendar cursor-default select-none
         ${isPast ? 'opacity-45' : ''}
         ${isCurrentDay ? 'ring-1 ring-[#2e7d5e]/40' : ''}
@@ -170,7 +170,7 @@ function DayCard({
       {/* Day number */}
       <div className="absolute top-[-8px] left-[-3px] z-20">
         <span className={`
-          text-[13px] font-semibold tracking-tight leading-none
+          text-[11px] font-semibold tracking-tight leading-none
           ${isCurrentDay ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
         `}>
           {format(date, 'd')}
@@ -262,7 +262,7 @@ export default function Calendar() {
   });
 
   return (
-    <div className="liquid-glass-calendar p-8 w-full" {...swipeHandlers}>
+    <div className="liquid-glass-calendar p-6 w-full" {...swipeHandlers}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
         <NavButton direction="left" onClick={prevMonth} />
@@ -272,7 +272,7 @@ export default function Calendar() {
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.20 }}
-          className="text-[#3d2b1f] font-semibold text-lg capitalize"
+          className="text-[#3d2b1f] font-semibold text-base capitalize"
         >
           {format(currentMonth, 'LLLL yyyy', { locale: ru })}
         </motion.span>
@@ -284,7 +284,7 @@ export default function Calendar() {
       <div className="grid grid-cols-7 mb-2">
         {DAYS_HEADER.map(day => (
           <div key={day} className="flex items-center justify-center">
-            <span className="text-[11px] font-semibold text-[#9e8476] uppercase tracking-widest">
+            <span className="text-[10px] font-semibold text-[#9e8476] uppercase tracking-widest">
               {day}
             </span>
           </div>
@@ -292,7 +292,7 @@ export default function Calendar() {
       </div>
 
       {/* ── Days grid ── */}
-      <motion.div layout className="grid grid-cols-7 gap-2">
+      <motion.div layout className="grid grid-cols-7 gap-1.5">
         {days.map(date => {
           const key = format(date, 'yyyy-MM-dd');
           const slots = MOCK_SLOTS[key] ?? [];

@@ -5,6 +5,7 @@ import Calendar from './components/Calendar';
 import AdminSchedulePanel from './components/AdminSchedulePanel';
 import { SOCIAL_LINKS, BOT_CONFIG } from './config';
 import { vibrateMedium } from './utils/vibration';
+import { useWebSocket } from './hooks/useWebSocket';
 
 // ─── View type ────────────────────────────────────────────────────────────────
 type View = 'client' | 'admin';
@@ -13,6 +14,43 @@ type View = 'client' | 'admin';
 export default function App() {
   const [view, setView] = useState<View>('client');
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // WebSocket connection for real-time updates
+  const { isConnected, lastMessage } = useWebSocket(
+    import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws'
+  );
+
+  // Log WebSocket connection status
+  useEffect(() => {
+    console.log('WebSocket connection status:', isConnected);
+  }, [isConnected]);
+
+  // Handle WebSocket messages
+  useEffect(() => {
+    if (lastMessage) {
+      console.log('Received WebSocket message:', lastMessage);
+      
+      // Handle booking updates
+      if (lastMessage.type === 'booking_update') {
+        if (lastMessage.event === 'created') {
+          console.log('New booking created:', lastMessage.data);
+          // Refresh calendar or show notification
+          vibrateMedium();
+        } else if (lastMessage.event === 'cancelled') {
+          console.log('Booking cancelled:', lastMessage.data);
+          // Refresh calendar or show notification
+          vibrateMedium();
+        }
+      }
+      
+      // Handle slot updates
+      if (lastMessage.type === 'slot_update') {
+        console.log('Slots updated:', lastMessage.data);
+        // Refresh calendar
+        vibrateMedium();
+      }
+    }
+  }, [lastMessage]);
 
   // Проверяем admin_id из Telegram WebApp initData
   useEffect(() => {

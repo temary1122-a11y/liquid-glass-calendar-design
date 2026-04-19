@@ -85,5 +85,8 @@ export const BOT_CONFIG = {
   BOT_TOKEN: import.meta.env.VITE_BOT_TOKEN || '',
 
   // ID администратора (получить у @userinfobot)
-  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '1834686956',
+  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '',
+
+  // Секретный ключ для HMAC аутентификации (генерируйте случайную строку)
+  ADMIN_SECRET_KEY: import.meta.env.VITE_ADMIN_SECRET_KEY || '',
 };

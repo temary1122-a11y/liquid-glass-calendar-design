@@ -2,8 +2,11 @@
 # api/routes/admin.py — Routes для админки
 # ============================================================
 
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, Request, HTTPException, Header, Depends
 from slowapi import Limiter
+import hmac
+import hashlib
+import logging
 from api.models import (
     GUISettings,
     Service,
@@ -29,7 +32,10 @@ from database.db import (
     delete_booking,
     get_bookings_for_day,
 )
-from config import ADMIN_ID
+from config import ADMIN_ID, ADMIN_SECRET_KEY
+from api.websocket import manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -48,10 +54,36 @@ gui_settings = GUISettings(
 )
 
 
-async def verify_admin(x_admin_id: int = Header(None, description="Admin ID for authentication")):
-    """Проверка админ-прав"""
+async def verify_admin(
+    request: Request,
+    x_admin_id: int = Header(None, description="Admin ID for authentication"),
+    x_admin_signature: str = Header(None, description="Admin HMAC signature")
+):
+    """Проверка админ-прав с HMAC подписью - Dependency"""
+    client_host = request.client.host if request.client else 'unknown'
+
+    if x_admin_id is None or x_admin_signature is None:
+        logger.warning(f"Missing admin credentials from {client_host}")
+        raise HTTPException(status_code=403, detail="Missing admin credentials")
+
     if x_admin_id != ADMIN_ID:
+        logger.warning(f"Invalid admin ID: {x_admin_id} from {client_host}")
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Вычисление ожидаемой подписи
+    expected_signature = hmac.new(
+        ADMIN_SECRET_KEY.encode(),
+        str(x_admin_id).encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    # Безопасное сравнение подписей
+    if not hmac.compare_digest(x_admin_signature, expected_signature):
+        logger.warning(f"Invalid admin signature from {client_host}")
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
+    logger.info(f"Admin authenticated successfully from {client_host}")
+    return x_admin_id
 
 
 @router.get("/settings", response_model=GUISettings)
@@ -76,10 +108,9 @@ async def update_gui_settings(request: Request, settings: GUISettings):
 
 @router.post("/add-work-day")
 @limiter.limit("200/minute")
-async def add_work_day_endpoint(request: Request, body: dict, x_admin_id: int = Header(None)):
+async def add_work_day_endpoint(request: Request, body: dict, admin_id: int = Depends(verify_admin)):
     """Добавить рабочий день"""
-    await verify_admin(x_admin_id)
-    print(f"DEBUG add-work-day: body={body}, x_admin_id={x_admin_id}")
+    print(f"DEBUG add-work-day: body={body}, admin_id={admin_id}")
 
     date = body.get("date")
     time_slots = body.get("time_slots")
@@ -92,6 +123,11 @@ async def add_work_day_endpoint(request: Request, body: dict, x_admin_id: int = 
 
     success = add_work_day(date, time_slots)
     if success:
+        # Broadcast slot update to all connected clients
+        await manager.send_slot_update(
+            event_type="added",
+            slot_data={"date": date, "time_slots": time_slots}
+        )
         return {"success": True, "message": "Рабочий день добавлен"}
     else:
         return {"success": False, "message": "День уже существует"}
@@ -99,10 +135,9 @@ async def add_work_day_endpoint(request: Request, body: dict, x_admin_id: int = 
 
 @router.post("/add-time-slot")
 @limiter.limit("200/minute")
-async def add_time_slot_endpoint(request: Request, body: AddTimeSlotRequest, x_admin_id: int = Header(None)):
+async def add_time_slot_endpoint(request: Request, body: AddTimeSlotRequest, admin_id: int = Depends(verify_admin)):
     """Добавить временной слот"""
-    await verify_admin(x_admin_id)
-    print(f"DEBUG add-time-slot: body={body}, x_admin_id={x_admin_id}")
+    print(f"DEBUG add-time-slot: body={body}, admin_id={admin_id}")
 
     success = add_time_slot(body.date, body.time)
     if success:
@@ -113,10 +148,9 @@ async def add_time_slot_endpoint(request: Request, body: AddTimeSlotRequest, x_a
 
 @router.post("/delete-time-slot")
 @limiter.limit("200/minute")
-async def delete_time_slot_endpoint(request: Request, body: DeleteTimeSlotRequest, x_admin_id: int = Header(None)):
+async def delete_time_slot_endpoint(request: Request, body: DeleteTimeSlotRequest, admin_id: int = Depends(verify_admin)):
     """Удалить временной слот"""
-    await verify_admin(x_admin_id)
-    print(f"DEBUG delete-time-slot: body={body}, x_admin_id={x_admin_id}")
+    print(f"DEBUG delete-time-slot: body={body}, admin_id={admin_id}")
 
     success = delete_time_slot(body.date, body.time)
     if success:
@@ -127,9 +161,8 @@ async def delete_time_slot_endpoint(request: Request, body: DeleteTimeSlotReques
 
 @router.get("/work-days", response_model=list[WorkDayInfo])
 @limiter.limit("200/minute")
-async def get_work_days_endpoint(request: Request, x_admin_id: int = Header(None)):
+async def get_work_days_endpoint(request: Request, admin_id: int = Depends(verify_admin)):
     """Получить все рабочие дни"""
-    await verify_admin(x_admin_id)
 
     work_days = get_all_work_days()
     result = []
@@ -154,9 +187,8 @@ async def get_work_days_endpoint(request: Request, x_admin_id: int = Header(None
 
 @router.get("/bookings/{date}")
 @limiter.limit("200/minute")
-async def get_bookings_for_date(request: Request, date: str, x_admin_id: int = Header(None)):
+async def get_bookings_for_date(request: Request, date: str, admin_id: int = Depends(verify_admin)):
     """Получить записи на конкретную дату"""
-    await verify_admin(x_admin_id)
 
     from database.db import get_conn
 
@@ -185,9 +217,8 @@ async def get_bookings_for_date(request: Request, date: str, x_admin_id: int = H
 
 @router.post("/close-day")
 @limiter.limit("200/minute")
-async def close_day_endpoint(request: Request, body: dict, x_admin_id: int = Header(None)):
+async def close_day_endpoint(request: Request, body: dict, admin_id: int = Depends(verify_admin)):
     """Закрыть рабочий день"""
-    await verify_admin(x_admin_id)
     date = body.get("date")
     if not date:
         raise HTTPException(status_code=422, detail="date is required")
@@ -197,9 +228,8 @@ async def close_day_endpoint(request: Request, body: dict, x_admin_id: int = Hea
 
 @router.post("/open-day")
 @limiter.limit("200/minute")
-async def open_day_endpoint(request: Request, body: dict, x_admin_id: int = Header(None)):
+async def open_day_endpoint(request: Request, body: dict, admin_id: int = Depends(verify_admin)):
     """Открыть рабочий день"""
-    await verify_admin(x_admin_id)
     date = body.get("date")
     if not date:
         raise HTTPException(status_code=422, detail="date is required")
@@ -209,9 +239,8 @@ async def open_day_endpoint(request: Request, body: dict, x_admin_id: int = Head
 
 @router.post("/delete-work-day")
 @limiter.limit("200/minute")
-async def delete_work_day_endpoint(request: Request, body: DeleteWorkDayRequest, x_admin_id: int = Header(None)):
+async def delete_work_day_endpoint(request: Request, body: DeleteWorkDayRequest, admin_id: int = Depends(verify_admin)):
     """Удалить рабочий день"""
-    await verify_admin(x_admin_id)
     success = delete_work_day(body.day_date)
     if success:
         return {"success": True, "message": "Рабочий день удалён"}
@@ -220,10 +249,9 @@ async def delete_work_day_endpoint(request: Request, body: DeleteWorkDayRequest,
 
 
 @router.post("/cleanup-database")
-@limiter.limit("10/hour", key_func=lambda: "cleanup")
-async def cleanup_database_endpoint(request: Request, x_admin_id: int = Header(None)):
+@limiter.limit("10/hour", key_func=lambda r: "cleanup")
+async def cleanup_database_endpoint(request: Request, admin_id: int = Depends(verify_admin)):
     """Полностью очистить базу данных"""
-    await verify_admin(x_admin_id)
 
     from database.db import get_conn
 
@@ -253,10 +281,9 @@ async def cleanup_database_endpoint(request: Request, x_admin_id: int = Header(N
 
 @router.post("/create-client")
 @limiter.limit("200/minute")
-async def create_client_endpoint(request: Request, body: AdminClientRequest, x_admin_id: int = Header(None)):
+async def create_client_endpoint(request: Request, body: AdminClientRequest, admin_id: int = Depends(verify_admin)):
     """Создать запись клиента через админ панель"""
-    await verify_admin(x_admin_id)
-    print(f"DEBUG create-client: body={body}, x_admin_id={x_admin_id}")
+    print(f"DEBUG create-client: body={body}, admin_id={admin_id}")
 
     # Создаем запись с user_id=0 если это ручная запись
     user_id = body.user_id if body.user_id else 0
@@ -278,10 +305,9 @@ async def create_client_endpoint(request: Request, body: AdminClientRequest, x_a
 
 @router.post("/update-client")
 @limiter.limit("200/minute")
-async def update_client_endpoint(request: Request, body: AdminClientRequest, x_admin_id: int = Header(None)):
+async def update_client_endpoint(request: Request, body: AdminClientRequest, admin_id: int = Depends(verify_admin)):
     """Обновить запись клиента через админ панель"""
-    await verify_admin(x_admin_id)
-    print(f"DEBUG update-client: body={body}, x_admin_id={x_admin_id}")
+    print(f"DEBUG update-client: body={body}, admin_id={admin_id}")
 
     # Находим существующую запись
     existing_bookings = get_bookings_for_day(body.date)
@@ -313,10 +339,9 @@ async def update_client_endpoint(request: Request, body: AdminClientRequest, x_a
 
 @router.post("/delete-client")
 @limiter.limit("200/minute")
-async def delete_client_endpoint(request: Request, body: DeleteClientRequest, x_admin_id: int = Header(None)):
+async def delete_client_endpoint(request: Request, body: DeleteClientRequest, admin_id: int = Depends(verify_admin)):
     """Удалить запись клиента через админ панель"""
-    await verify_admin(x_admin_id)
-    print(f"DEBUG delete-client: body={body}, x_admin_id={x_admin_id}")
+    print(f"DEBUG delete-client: body={body}, admin_id={admin_id}")
 
     success = delete_booking(body.date, body.time)
     if success:

@@ -10,5 +10,9 @@ services:
         sync: false
       - key: ADMIN_ID
         sync: false
+      - key: ADMIN_SECRET_KEY
+        sync: false
       - key: ADMIN_USERNAME
         sync: false
+      - key: DB_PATH
+        value: /etc/secrets/db_path
