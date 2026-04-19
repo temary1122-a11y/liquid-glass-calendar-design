@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -15,6 +16,19 @@ from database.db import init_db
 import json
 
 app = FastAPI(title="Lash Bot API", version="1.0.0")
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Middleware to disable HTTP caching for API endpoints"""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Disable caching for all API endpoints
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
 
 # Rate limiter setup
 limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.get("x-forwarded-for", ""))
@@ -29,6 +43,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# No-cache middleware for API endpoints
+app.add_middleware(NoCacheMiddleware)
 
 # Подключаем роуты
 app.include_router(booking.router)

@@ -16,6 +16,7 @@ from api.models import (
     DeleteWorkDayRequest,
     WorkDayInfo,
     AdminClientRequest,
+    UpdateSlotTimeRequest,
     DeleteClientRequest,
 )
 from database.db import (
@@ -28,6 +29,7 @@ from database.db import (
     close_day,
     open_day,
     create_booking,
+    update_slot_time,
     update_booking,
     delete_booking,
     get_bookings_for_day,
@@ -325,6 +327,25 @@ async def update_client_endpoint(request: Request, body: AdminClientRequest, adm
         return {"success": True, "message": "Клиент обновлен"}
     else:
         return {"success": False, "message": "Не удалось обновить клиента"}
+
+
+@router.post("/update-slot-time")
+@limiter.limit("200/minute")
+async def update_slot_time_endpoint(request: Request, body: UpdateSlotTimeRequest, admin_id: int = Depends(verify_admin)):
+    """Обновить время слота (для редактирования пустого слота без клиента)"""
+    print(f"DEBUG update-slot-time: body={body}, admin_id={admin_id}")
+
+    success = update_slot_time(
+        old_date=body.old_date,
+        old_time=body.old_time,
+        new_date=body.new_date,
+        new_time=body.new_time,
+    )
+
+    if success:
+        return {"success": True, "message": "Время слота обновлено"}
+    else:
+        return {"success": False, "message": "Не удалось обновить время слота"}
 
 
 @router.post("/delete-client")

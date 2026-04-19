@@ -104,6 +104,14 @@ class AdminClientRequest(BaseModel):
     status: Optional[str] = "confirmed"  # confirmed, pending
 
 
+class UpdateSlotTimeRequest(BaseModel):
+    """Запрос на обновление времени слота без клиента"""
+    old_date: str
+    old_time: str
+    new_date: str
+    new_time: str
+
+
 class DeleteClientRequest(BaseModel):
     """Запрос на удаление клиента"""
     date: str

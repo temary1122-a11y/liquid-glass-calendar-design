@@ -172,16 +172,19 @@ def get_all_work_days() -> list[sqlite3.Row]:
 
 def get_available_work_days() -> list[sqlite3.Row]:
     """Returns available work days for clients (only future, open, and with free slots)."""
+    logger.info("get_available_work_days() called - fetching available work days")
     with get_conn() as conn:
-        return conn.execute("""
-            SELECT DISTINCT wd.* 
+        result = conn.execute("""
+            SELECT DISTINCT wd.*
             FROM work_days wd
             JOIN time_slots ts ON ts.day_date = wd.day_date
-            WHERE wd.day_date >= date('now','localtime') 
+            WHERE wd.day_date >= date('now','localtime')
               AND wd.is_closed = 0
               AND ts.is_booked = 0
             ORDER BY wd.day_date
         """).fetchall()
+        logger.info(f"get_available_work_days() returned {len(result)} days")
+        return result
 
 
 def day_exists(day_date: str) -> bool:
@@ -263,8 +266,9 @@ def delete_work_day(day_date: str) -> bool:
 
 def get_free_slots(day_date: str) -> list[sqlite3.Row]:
     """Возвращает свободные слоты на указанный день."""
+    logger.info(f"get_free_slots() called for day={day_date}")
     with get_conn() as conn:
-        return conn.execute("""
+        result = conn.execute("""
             SELECT ts.*
             FROM time_slots ts
             JOIN work_days wd ON wd.day_date = ts.day_date
@@ -273,6 +277,8 @@ def get_free_slots(day_date: str) -> list[sqlite3.Row]:
               AND wd.is_closed = 0
             ORDER BY ts.slot_time
         """, (day_date,)).fetchall()
+        logger.info(f"get_free_slots() returned {len(result)} slots for day={day_date}")
+        return result
 
 
 def get_all_slots(day_date: str) -> list[sqlite3.Row]:
@@ -282,6 +288,43 @@ def get_all_slots(day_date: str) -> list[sqlite3.Row]:
             "SELECT * FROM time_slots WHERE day_date = ? ORDER BY slot_time",
             (day_date,)
         ).fetchall()
+
+
+def update_slot_time(old_date: str, old_time: str, new_date: str, new_time: str) -> bool:
+    """Обновляет время слота (для редактирования пустого слота без клиента)."""
+    try:
+        with get_conn() as conn:
+            # Проверяем что слот существует и не забронирован
+            existing = conn.execute(
+                "SELECT * FROM time_slots WHERE day_date = ? AND slot_time = ? AND is_booked = 0",
+                (old_date, old_time)
+            ).fetchone()
+
+            if not existing:
+                logger.warning(f"Slot not found or already booked: {old_date} {old_time}")
+                return False
+
+            # Проверяем что новый слот не существует
+            conflict = conn.execute(
+                "SELECT * FROM time_slots WHERE day_date = ? AND slot_time = ?",
+                (new_date, new_time)
+            ).fetchone()
+
+            if conflict:
+                logger.warning(f"Target slot already exists: {new_date} {new_time}")
+                return False
+
+            # Обновляем время слота
+            conn.execute(
+                "UPDATE time_slots SET day_date = ?, slot_time = ? WHERE day_date = ? AND slot_time = ?",
+                (new_date, new_time, old_date, old_time)
+            )
+            conn.commit()
+            logger.info(f"Slot time updated: {old_date} {old_time} -> {new_date} {new_time}")
+            return True
+    except Exception as e:
+        logger.error(f"Error updating slot time: {e}")
+        return False
 
 
 # ────────────────────────────────────────────────────────────
