@@ -153,7 +153,7 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
     userId: '',
     note: ''
   });
-  const [pickerTime, setPickerTime] = useState('09:00'); // Локальное состояние для picker
+  const [pickerTime, setPickerTime] = useState('09:00'); // Local state for picker
   const { vibrate } = useVibration();
 
   // Получаем клиента для конкретного слота
@@ -231,6 +231,7 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
           whileTap={{ scale: 0.92 }}
           onClick={() => {
             vibrate(VIBRATION_PATTERNS.LIGHT);
+            setPickerTime('09:00'); // Reset to default time
             setPickerOpen(v => !v);
           }}
           className="liquid-glass-nav h-9 px-4 rounded-xl flex items-center gap-1.5
@@ -246,10 +247,10 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
         open={pickerOpen}
         value={pickerTime}
         onChange={(time) => {
-          setPickerTime(time); // Только обновляем состояние
+          setPickerTime(time); // Update picker time with live preview
         }}
         onConfirm={() => {
-          onAddSlot(pickerTime);
+          onAddSlot(pickerTime); // Use the current picker time
         }}
         onClose={() => setPickerOpen(false)}
       />
