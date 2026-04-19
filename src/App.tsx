@@ -110,7 +110,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="text-2xl select-none sticker-bounce" aria-hidden>🎀</span>
             <div>
-              <h1 className="text-[#3d2b1f] text-lg font-semibold leading-tight">
+              <h1 className="text-[#3d2b1f] text-xl font-semibold leading-tight">
                 YourLashes
               </h1>
               <p className="text-[#9e8476] text-sm">
