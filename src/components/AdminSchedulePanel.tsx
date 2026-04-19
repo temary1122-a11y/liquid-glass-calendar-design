@@ -252,7 +252,6 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
           onAddSlot(pickerTime);
         }}
         onClose={() => setPickerOpen(false)}
-        title="Добавить слот"
       />
 
       {/* ── Slots list ── */}
@@ -338,7 +337,6 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
                         setEditTimePickerOpen(false);
                       }}
                       onClose={() => setEditTimePickerOpen(false)}
-                      title="Изменить время"
                     />
                   </motion.div>
                 ) : (
