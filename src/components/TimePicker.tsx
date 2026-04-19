@@ -61,6 +61,8 @@ export default function TimePicker({ value, onChange, onConfirm, onClose }: Time
             value={time}
             onChange={handleTimeChange}
             minutes={[0, 15, 30, 45]}
+            itemHeight={48}
+            visibleCount={5}
             className="bg-white/95 backdrop-blur-xl rounded-t-3xl p-6 border-t border-white/30"
           >
             {/* Header */}
@@ -81,8 +83,8 @@ export default function TimePicker({ value, onChange, onConfirm, onClose }: Time
               </motion.button>
             </div>
 
-            {/* Time Picker Wheels */}
-            <TimePickerWheels className="flex justify-center items-center gap-2">
+            {/* Time Picker Wheels с iOS momentum scrolling */}
+            <TimePickerWheels className="flex justify-center items-center gap-2 -webkit-overflow-scrolling: touch">
               <TimePickerWheel
                 type="hour"
                 className="bg-[#f7d5bc]/30 backdrop-blur-sm rounded-lg"
