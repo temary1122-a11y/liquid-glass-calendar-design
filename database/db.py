@@ -13,6 +13,17 @@ from config import DB_PATH
 
 logger = logging.getLogger(__name__)
 
+# PostgreSQL support
+DATABASE_URL = os.getenv("DATABASE_URL")
+USE_POSTGRES = DATABASE_URL is not None
+
+if USE_POSTGRES:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    logger.info("Using PostgreSQL database")
+else:
+    logger.info(f"Using SQLite database at {DB_PATH}")
+
 
 # ────────────────────────────────────────────────────────────
 # Контекстный менеджер подключения
@@ -20,23 +31,39 @@ logger = logging.getLogger(__name__)
 @contextmanager
 def get_conn():
     """Возвращает соединение с автокоммитом/откатом."""
-    # Создаём директорию если не существует
-    db_dir = os.path.dirname(DB_PATH)
-    if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir, exist_ok=True)
+    if USE_POSTGRES:
+        # PostgreSQL connection
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.autocommit = False
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            yield cursor
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+    else:
+        # SQLite connection
+        # Создаём директорию если не существует
+        db_dir = os.path.dirname(DB_PATH)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 # ────────────────────────────────────────────────────────────
@@ -46,58 +73,93 @@ def init_db() -> None:
     """Создаёт все нужные таблицы, если они не существуют."""
     try:
         with get_conn() as conn:
-            conn.executescript("""
-                -- Рабочие дни
-                CREATE TABLE IF NOT EXISTS work_days (
-                    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                    day_date  TEXT    UNIQUE NOT NULL,   -- YYYY-MM-DD
-                    is_closed INTEGER NOT NULL DEFAULT 0 -- 0 = открыт, 1 = закрыт
-                );
+            if USE_POSTGRES:
+                # PostgreSQL schema
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS work_days (
+                        id        SERIAL PRIMARY KEY,
+                        day_date  TEXT    UNIQUE NOT NULL,
+                        is_closed INTEGER NOT NULL DEFAULT 0
+                    );
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS time_slots (
+                        id        SERIAL PRIMARY KEY,
+                        day_date  TEXT    NOT NULL,
+                        slot_time TEXT    NOT NULL,
+                        is_booked INTEGER NOT NULL DEFAULT 0,
+                        UNIQUE(day_date, slot_time),
+                        FOREIGN KEY (day_date) REFERENCES work_days(day_date) ON DELETE CASCADE
+                    );
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS bookings (
+                        id           SERIAL PRIMARY KEY,
+                        user_id      INTEGER,
+                        username     TEXT,
+                        client_name  TEXT    NOT NULL,
+                        phone        TEXT    NOT NULL,
+                        day_date     TEXT    NOT NULL,
+                        slot_time    TEXT    NOT NULL,
+                        created_at   TEXT    NOT NULL DEFAULT NOW(),
+                        is_cancelled INTEGER NOT NULL DEFAULT 0,
+                        cancel_reason TEXT,
+                        cancelled_at TEXT,
+                        service_id   TEXT,
+                        note         TEXT,
+                        UNIQUE(day_date, slot_time)
+                    );
+                """)
+            else:
+                # SQLite schema
+                conn.executescript("""
+                    CREATE TABLE IF NOT EXISTS work_days (
+                        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                        day_date  TEXT    UNIQUE NOT NULL,
+                        is_closed INTEGER NOT NULL DEFAULT 0
+                    );
 
-                -- Временные слоты
-                CREATE TABLE IF NOT EXISTS time_slots (
-                    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                    day_date  TEXT    NOT NULL,           -- YYYY-MM-DD
-                    slot_time TEXT    NOT NULL,           -- HH:MM
-                    is_booked INTEGER NOT NULL DEFAULT 0, -- 0 = свободен, 1 = занят
-                    UNIQUE(day_date, slot_time),
-                    FOREIGN KEY (day_date) REFERENCES work_days(day_date) ON DELETE CASCADE
-                );
+                    CREATE TABLE IF NOT EXISTS time_slots (
+                        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                        day_date  TEXT    NOT NULL,
+                        slot_time TEXT    NOT NULL,
+                        is_booked INTEGER NOT NULL DEFAULT 0,
+                        UNIQUE(day_date, slot_time),
+                        FOREIGN KEY (day_date) REFERENCES work_days(day_date) ON DELETE CASCADE
+                    );
 
-                -- Записи клиентов
-                CREATE TABLE IF NOT EXISTS bookings (
-                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id      INTEGER NOT NULL,
-                    username     TEXT,
-                    client_name  TEXT    NOT NULL,
-                    phone        TEXT    NOT NULL,
-                    day_date     TEXT    NOT NULL,
-                    slot_time    TEXT    NOT NULL,
-                    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
-                    is_cancelled INTEGER NOT NULL DEFAULT 0,
-                    cancel_reason TEXT,
-                    cancelled_at TEXT,
-                    UNIQUE(day_date, slot_time)
-                );
-
-                -- Миграция: открываем все закрытые дни по умолчанию
-                UPDATE work_days SET is_closed = 0 WHERE is_closed = 1;
-
-                -- Миграция: добавляем service_id в bookings если нет
-                ALTER TABLE bookings ADD COLUMN service_id TEXT;
-
-                -- Миграция: добавляем is_cancelled в bookings если нет
-                ALTER TABLE bookings ADD COLUMN is_cancelled INTEGER NOT NULL DEFAULT 0;
-
-                -- Миграция: добавляем cancel_reason в bookings если нет
-                ALTER TABLE bookings ADD COLUMN cancel_reason TEXT;
-
-                -- Миграция: добавляем cancelled_at в bookings если нет
-                ALTER TABLE bookings ADD COLUMN cancelled_at TEXT;
-            """)
-    except sqlite3.OperationalError:
-        # Игнорируем ошибку если колонка уже существует
-        pass
+                    CREATE TABLE IF NOT EXISTS bookings (
+                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id      INTEGER,
+                        username     TEXT,
+                        client_name  TEXT    NOT NULL,
+                        phone        TEXT    NOT NULL,
+                        day_date     TEXT    NOT NULL,
+                        slot_time    TEXT    NOT NULL,
+                        created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+                        is_cancelled INTEGER NOT NULL DEFAULT 0,
+                        cancel_reason TEXT,
+                        cancelled_at TEXT,
+                        service_id   TEXT,
+                        note         TEXT,
+                        UNIQUE(day_date, slot_time)
+                    );
+                """)
+    except Exception as e:
+        if USE_POSTGRES:
+            # PostgreSQL might raise duplicate column error
+            if "duplicate column" in str(e).lower():
+                logger.info(f"Column already exists: {e}")
+            else:
+                logger.error(f"Error initializing database: {e}")
+                raise
+        else:
+            # SQLite might raise OperationalError for duplicate columns
+            if "duplicate column" in str(e).lower():
+                logger.info(f"Column already exists: {e}")
+            else:
+                logger.error(f"Error initializing database: {e}")
+                raise
     logger.info("БД инициализирована.")
 
 
