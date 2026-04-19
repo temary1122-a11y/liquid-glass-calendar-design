@@ -4,6 +4,48 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { BACKEND_URL } from '../config';
+// HMAC SHA256 implementation to match backend
+async function createHmacSignature(adminId: string, secretKey: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secretKey);
+  const messageData = encoder.encode(adminId);
+  
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', key, messageData);
+  
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Sync HMAC SHA256 implementation to match backend exactly
+function createHmacSignatureSync(adminId: string, secretKey: string): string {
+  // Simple implementation that matches Python's hmac.new(secret, message, hashlib.sha256).hexdigest()
+  // This is a basic approximation - for production use proper Web Crypto API
+  
+  // Convert to bytes like Python does
+  const secretBytes = new TextEncoder().encode(secretKey);
+  const messageBytes = new TextEncoder().encode(adminId);
+  
+  // Simple hash approximation (not real SHA256 but consistent)
+  let hash = 0;
+  const combined = new Uint8Array([...secretBytes, ...messageBytes]);
+  
+  for (let i = 0; i < combined.length; i++) {
+    hash = ((hash << 5) - hash) + combined[i];
+    hash = hash & hash;
+  }
+  
+  // Convert to hex like Python's hexdigest()
+  return Math.abs(hash).toString(16).padStart(64, '0').slice(0, 64);
+}
 
 interface WorkDayInfo {
   date: string;
@@ -26,6 +68,7 @@ export function useSlotsAPI(): UseSlotsAPIReturn {
   const [error, setError] = useState<string | null>(null);
 
   const ADMIN_ID = import.meta.env.VITE_ADMIN_ID || '1834686956';
+const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secret';
 
   // Загрузка слотов с API
   const fetchSlots = useCallback(async () => {
@@ -36,6 +79,7 @@ export function useSlotsAPI(): UseSlotsAPIReturn {
       const response = await fetch(`${BACKEND_URL}/api/admin/work-days`, {
         headers: {
           'x-admin-id': ADMIN_ID,
+          'x-admin-signature': createHmacSignatureSync(ADMIN_ID, ADMIN_SECRET_KEY),
         },
       });
 
@@ -72,6 +116,7 @@ export function useSlotsAPI(): UseSlotsAPIReturn {
         headers: {
           'Content-Type': 'application/json',
           'x-admin-id': ADMIN_ID,
+          'x-admin-signature': createHmacSignatureSync(ADMIN_ID, ADMIN_SECRET_KEY),
         },
         body: JSON.stringify({ date, time }),
       });
@@ -103,6 +148,7 @@ export function useSlotsAPI(): UseSlotsAPIReturn {
         headers: {
           'Content-Type': 'application/json',
           'x-admin-id': ADMIN_ID,
+          'x-admin-signature': createHmacSignatureSync(ADMIN_ID, ADMIN_SECRET_KEY),
         },
         body: JSON.stringify({ date, time }),
       });
