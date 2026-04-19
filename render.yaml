@@ -16,3 +16,5 @@ services:
         sync: false
       - key: DB_PATH
         value: /etc/secrets/db_path
+      - key: MINI_APP_URL
+        value: https://liquid-glass-calendar-design.vercel.app

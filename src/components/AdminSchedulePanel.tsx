@@ -28,7 +28,6 @@ import { MOCK_CLIENTS } from '../mockData';
 import { useVibration, VIBRATION_PATTERNS } from '../hooks/useVibration';
 import { useSlotsAPI } from '../hooks/useSlotsAPI';
 import { useClientsAPI } from '../hooks/useClientsAPI';
-import TimePicker from './TimePicker';
 
 const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -143,8 +142,6 @@ interface SelectedDayPanelProps {
 }
 
 function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients = [], onUpdateClient }: SelectedDayPanelProps) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [editTimePickerOpen, setEditTimePickerOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
@@ -232,7 +229,6 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
           onClick={() => {
             vibrate(VIBRATION_PATTERNS.LIGHT);
             setPickerTime('09:00'); // Reset to default time
-            setPickerOpen(v => !v);
           }}
           className="liquid-glass-nav h-9 px-4 rounded-xl flex items-center gap-1.5
             text-[#7c5340] text-xs font-semibold hover:text-[#3d2b1f] transition-colors"
@@ -242,17 +238,20 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
         </motion.button>
       </div>
 
-      {/* ── Time Picker (iOS-style) ── */}
-      <TimePicker
-        open={pickerOpen}
+      {/* ── Time Picker (Native) ── */}
+      <input
+        type="time"
         value={pickerTime}
-        onChange={(time) => {
-          setPickerTime(time); // Update picker time with live preview
+        onChange={(e) => {
+          const newTime = e.target.value;
+          setPickerTime(newTime);
+          if (newTime) {
+            onAddSlot(newTime);
+          }
         }}
-        onConfirm={() => {
-          onAddSlot(pickerTime); // Use the current picker time
-        }}
-        onClose={() => setPickerOpen(false)}
+        className="w-full px-4 py-3 text-lg text-center text-[#3d2b1f] font-semibold bg-[#f5f0e8] border-2 border-[#e8e0d0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 focus:border-[#c4967a]"
+        autoFocus
+        onClick={(e) => e.currentTarget.showPicker?.()}
       />
 
       {/* ── Slots list ── */}
@@ -288,10 +287,15 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
                       type="button"
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
-                      onClick={() => setEditTimePickerOpen(true)}
                       className="w-full px-3 py-2 rounded-lg bg-white/50 border border-white/40 text-[#3d2b1f] text-base focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 text-left"
                     >
-                      {editForm.time || 'Выберите время'}
+                      <input
+                        type="time"
+                        value={editForm.time}
+                        onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                        className="w-full bg-transparent border-none focus:outline-none text-[#3d2b1f]"
+                        onClick={(e) => e.currentTarget.showPicker?.()}
+                      />
                     </motion.button>
                     <input
                       type="text"
@@ -325,20 +329,6 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
                         Отмена
                       </motion.button>
                     </div>
-                    
-                    {/* TimePicker для редактирования */}
-                    <TimePicker
-                      open={editTimePickerOpen}
-                      value={editForm.time}
-                      onChange={(time) => {
-                        setEditForm({ ...editForm, time }); // Только обновляем состояние
-                      }}
-                      onConfirm={() => {
-                        vibrate(VIBRATION_PATTERNS.SUCCESS);
-                        setEditTimePickerOpen(false);
-                      }}
-                      onClose={() => setEditTimePickerOpen(false)}
-                    />
                   </motion.div>
                 ) : (
                   <motion.div

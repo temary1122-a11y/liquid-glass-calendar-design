@@ -486,10 +486,36 @@ def update_booking(
     username: Optional[str] = None,
     note: Optional[str] = None,
 ) -> Optional[sqlite3.Row]:
-    """Обновляет запись клиента."""
+    """Обновляет запись клиента и обновляет статус слотов."""
     try:
         with get_conn() as conn:
             cursor = conn.cursor()
+            
+            # Получаем текущую информацию о записи
+            current_booking = get_booking_by_id(booking_id)
+            if not current_booking:
+                logger.error(f"Запись {booking_id} не найдена")
+                return None
+            
+            old_date = current_booking["day_date"]
+            old_time = current_booking["slot_time"]
+            
+            # Если время изменилось, обновляем статусы слотов
+            if old_date != day_date or old_time != slot_time:
+                # Освобождаем старый слот
+                conn.execute(
+                    "UPDATE time_slots SET is_booked=0 WHERE day_date=? AND slot_time=?",
+                    (old_date, old_time)
+                )
+                
+                # Занимаем новый слот
+                conn.execute(
+                    "UPDATE time_slots SET is_booked=1 WHERE day_date=? AND slot_time=?",
+                    (day_date, slot_time)
+                )
+                logger.info(f"Слоты обновлены: {old_date} {old_time} -> {day_date} {slot_time}")
+            
+            # Обновляем запись клиента
             cursor.execute("""
                 UPDATE bookings
                 SET client_name=?, phone=?, day_date=?, slot_time=?, username=?, note=?
