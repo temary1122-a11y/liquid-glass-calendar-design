@@ -2,7 +2,7 @@
 // src/components/TimePicker.tsx — iOS-style Time Picker
 // ============================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TimePickerRoot,
@@ -14,29 +14,16 @@ import {
 interface TimePickerProps {
   value: string;
   onChange: (time: string) => void;
+  onConfirm?: () => void;
   onClose: () => void;
 }
 
-export default function TimePicker({ value, onChange, onClose }: TimePickerProps) {
+export default function TimePicker({ value, onChange, onConfirm, onClose }: TimePickerProps) {
   const [time, setTime] = useState(value);
 
   useEffect(() => {
     setTime(value);
   }, [value]);
-
-  const handleVibrate = useCallback(() => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg?.HapticFeedback) {
-      try {
-        tg.HapticFeedback.notificationOccurred('success');
-        console.log('Haptic feedback executed');
-      } catch (error) {
-        console.warn('Haptic feedback error:', error);
-      }
-    } else {
-      console.warn('Haptic feedback not available');
-    }
-  }, []);
 
   const handleConfirm = () => {
     const tg = (window as any).Telegram?.WebApp;
@@ -48,21 +35,17 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
         console.warn('Haptic feedback error:', error);
       }
     }
+    if (onConfirm) {
+      onConfirm();
+    }
     onClose();
   };
 
-  // Debounce для предотвращения спама onChange
-  let debounceTimer: NodeJS.Timeout | null = null;
-  const handleTimeChange = useCallback((newTime: string) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-    debounceTimer = setTimeout(() => {
-      handleVibrate();
-      setTime(newTime);
-      onChange(newTime);
-    }, 150);
-  }, [handleVibrate, onChange]);
+  // Обработка изменения времени
+  const handleTimeChange = (newTime: string) => {
+    setTime(newTime);
+    onChange(newTime);
+  };
 
   return (
     <AnimatePresence>
@@ -77,7 +60,7 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
           <TimePickerRoot
             value={time}
             onChange={handleTimeChange}
-            minuteStep={15}
+            minutes={[0, 15, 30, 45]}
             className="bg-white/95 backdrop-blur-xl rounded-t-3xl p-6 border-t border-white/30"
           >
             {/* Header */}
@@ -98,11 +81,8 @@ export default function TimePicker({ value, onChange, onClose }: TimePickerProps
               </motion.button>
             </div>
 
-            {/* Time Picker Wheels - фиксированная высота и overflow для предотвращения уезда вниз */}
-            <TimePickerWheels
-              className="flex justify-center items-center gap-2 overflow-hidden"
-              style={{ height: '200px', position: 'relative' }}
-            >
+            {/* Time Picker Wheels */}
+            <TimePickerWheels className="flex justify-center items-center gap-2">
               <TimePickerWheel
                 type="hour"
                 className="bg-[#f7d5bc]/30 backdrop-blur-sm rounded-lg"

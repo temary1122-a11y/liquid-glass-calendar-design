@@ -152,6 +152,7 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
     userId: '',
     note: ''
   });
+  const [pickerTime, setPickerTime] = useState('09:00'); // Локальное состояние для picker
   const { vibrate } = useVibration();
 
   // Получаем клиента для конкретного слота
@@ -243,10 +244,14 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
       <AnimatePresence>
         {pickerOpen && (
           <TimePicker
-            value={editForm.time || '09:00'}
+            value={pickerTime}
             onChange={(time) => {
-              vibrate(VIBRATION_PATTERNS.TAP);
-              onAddSlot(time);
+              setPickerTime(time); // Только обновляем состояние
+            }}
+            onConfirm={() => {
+              vibrate(VIBRATION_PATTERNS.SUCCESS);
+              onAddSlot(pickerTime); // Создаем слот только при подтверждении
+              setPickerOpen(false);
             }}
             onClose={() => setPickerOpen(false)}
           />
@@ -329,8 +334,11 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
                       <TimePicker
                         value={editForm.time}
                         onChange={(time) => {
-                          setEditForm({ ...editForm, time });
-                          vibrate(VIBRATION_PATTERNS.TAP);
+                          setEditForm({ ...editForm, time }); // Только обновляем состояние
+                        }}
+                        onConfirm={() => {
+                          vibrate(VIBRATION_PATTERNS.SUCCESS);
+                          setEditTimePickerOpen(false);
                         }}
                         onClose={() => setEditTimePickerOpen(false)}
                       />
