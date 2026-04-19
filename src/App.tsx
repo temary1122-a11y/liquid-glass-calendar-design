@@ -25,12 +25,16 @@ export default function App() {
     console.log('=== Telegram WebApp Debug ===');
     console.log('Telegram.WebApp exists:', !!tg);
     console.log('Telegram.WebApp object:', tg);
+    console.log('Telegram.WebApp.version:', tg?.version);
+    console.log('Telegram.WebApp.platform:', tg?.platform);
     console.log('HapticFeedback available:', !!tg?.HapticFeedback);
+    console.log('HapticFeedback object:', tg?.HapticFeedback);
     console.log('initDataUnsafe:', tg?.initDataUnsafe);
     console.log('initData:', tg?.initData);
     console.log('user from initDataUnsafe:', tg?.initDataUnsafe?.user);
     console.log('user from initData:', tg?.initDataUser);
     console.log('URL param admin:', isAdminParam);
+    console.log('User Agent:', navigator.userAgent);
 
     if (tg) {
       tg.ready();
