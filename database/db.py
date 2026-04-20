@@ -66,6 +66,18 @@ def get_conn():
             conn.close()
 
 
+def _execute_fetch(conn, query, params=None, fetch_one=False):
+    """Helper for execute + fetch compatibility between SQLite and PostgreSQL"""
+    if USE_POSTGRES:
+        # PostgreSQL: execute returns None, use cursor for fetch
+        conn.execute(query, params or ())
+        return conn.fetchone() if fetch_one else conn.fetchall()
+    else:
+        # SQLite: execute returns result directly
+        result = conn.execute(query, params or ())
+        return result.fetchone() if fetch_one else result.fetchall()
+
+
 # ────────────────────────────────────────────────────────────
 # Создание таблиц
 # ────────────────────────────────────────────────────────────
@@ -213,7 +225,7 @@ def open_day(day_date: str) -> None:
 def get_available_days() -> list[sqlite3.Row]:
     """Возвращает открытые рабочие дни с хотя бы одним свободным слотом."""
     with get_conn() as conn:
-        return conn.execute("""
+        return _execute_fetch(conn, """
             SELECT DISTINCT wd.day_date
             FROM work_days wd
             JOIN time_slots ts ON ts.day_date = wd.day_date
@@ -221,22 +233,20 @@ def get_available_days() -> list[sqlite3.Row]:
               AND ts.is_booked = 0
               AND wd.day_date::date >= CURRENT_DATE
             ORDER BY wd.day_date
-        """).fetchall()
+        """)
 
 
 def get_all_work_days() -> list[sqlite3.Row]:
     """Возвращает все рабочие дни (для админ-панели)."""
     with get_conn() as conn:
-        return conn.execute(
-            "SELECT * FROM work_days ORDER BY day_date"
-        ).fetchall()
+        return _execute_fetch(conn, "SELECT * FROM work_days ORDER BY day_date")
 
 
 def get_available_work_days() -> list[sqlite3.Row]:
     """Returns available work days for clients (only future, open, and with free slots)."""
     logger.info("get_available_work_days() called - fetching available work days")
     with get_conn() as conn:
-        result = conn.execute("""
+        result = _execute_fetch(conn, """
             SELECT DISTINCT wd.*
             FROM work_days wd
             JOIN time_slots ts ON ts.day_date = wd.day_date
@@ -244,16 +254,16 @@ def get_available_work_days() -> list[sqlite3.Row]:
               AND wd.is_closed = 0
               AND ts.is_booked = 0
             ORDER BY wd.day_date
-        """).fetchall()
+        """)
         logger.info(f"get_available_work_days() returned {len(result)} days")
         return result
 
 
 def day_exists(day_date: str) -> bool:
     with get_conn() as conn:
-        row = conn.execute(
-            "SELECT id FROM work_days WHERE day_date = ?", (day_date,)
-        ).fetchone()
+        row = _execute_fetch(conn,
+            "SELECT id FROM work_days WHERE day_date = ?", (day_date,), fetch_one=True
+        )
         return row is not None
 
 
@@ -289,10 +299,10 @@ def delete_time_slot(day_date: str, slot_time: str) -> bool:
     """Удаляет слот (только если он не забронирован). True = успех."""
     try:
         with get_conn() as conn:
-            row = conn.execute(
+            row = _execute_fetch(conn,
                 "SELECT is_booked FROM time_slots WHERE day_date=? AND slot_time=?",
-                (day_date, slot_time)
-            ).fetchone()
+                (day_date, slot_time), fetch_one=True
+            )
             if row is None:
                 logger.warning(f"Слот {day_date} {slot_time} не найден")
                 return False
@@ -327,10 +337,10 @@ def delete_work_day(day_date: str) -> bool:
 
 
 def get_free_slots(day_date: str) -> list[sqlite3.Row]:
-    """Возвращает свободные слоты на указанный день."""
+    """Возвращает свободные слоты на день."""
     logger.info(f"get_free_slots() called for day={day_date}")
     with get_conn() as conn:
-        result = conn.execute("""
+        result = _execute_fetch(conn, """
             SELECT ts.*
             FROM time_slots ts
             JOIN work_days wd ON wd.day_date = ts.day_date
@@ -338,7 +348,7 @@ def get_free_slots(day_date: str) -> list[sqlite3.Row]:
               AND ts.is_booked = 0
               AND wd.is_closed = 0
             ORDER BY ts.slot_time
-        """, (day_date,)).fetchall()
+        """, (day_date,))
         logger.info(f"get_free_slots() returned {len(result)} slots for day={day_date}")
         return result
 
@@ -346,10 +356,10 @@ def get_free_slots(day_date: str) -> list[sqlite3.Row]:
 def get_all_slots(day_date: str) -> list[sqlite3.Row]:
     """Все слоты на день (для просмотра в админке)."""
     with get_conn() as conn:
-        return conn.execute(
+        return _execute_fetch(conn,
             "SELECT * FROM time_slots WHERE day_date = ? ORDER BY slot_time",
             (day_date,)
-        ).fetchall()
+        )
 
 
 def update_slot_time(old_date: str, old_time: str, new_date: str, new_time: str) -> bool:
@@ -357,20 +367,20 @@ def update_slot_time(old_date: str, old_time: str, new_date: str, new_time: str)
     try:
         with get_conn() as conn:
             # Проверяем что слот существует и не забронирован
-            existing = conn.execute(
+            existing = _execute_fetch(conn,
                 "SELECT * FROM time_slots WHERE day_date = ? AND slot_time = ? AND is_booked = 0",
-                (old_date, old_time)
-            ).fetchone()
+                (old_date, old_time), fetch_one=True
+            )
 
             if not existing:
                 logger.warning(f"Slot not found or already booked: {old_date} {old_time}")
                 return False
 
             # Проверяем что новый слот не существует
-            conflict = conn.execute(
+            conflict = _execute_fetch(conn,
                 "SELECT * FROM time_slots WHERE day_date = ? AND slot_time = ?",
-                (new_date, new_time)
-            ).fetchone()
+                (new_date, new_time), fetch_one=True
+            )
 
             if conflict:
                 logger.warning(f"Target slot already exists: {new_date} {new_time}")
@@ -429,10 +439,10 @@ def create_booking(
     try:
         with get_conn() as conn:
             # Проверяем, не занят ли слот
-            slot = conn.execute(
+            slot = _execute_fetch(conn,
                 "SELECT is_booked FROM time_slots WHERE day_date=? AND slot_time=?",
-                (day_date, slot_time)
-            ).fetchone()
+                (day_date, slot_time), fetch_one=True
+            )
             if slot is None or slot["is_booked"]:
                 logger.warning(f"Слот {day_date} {slot_time} недоступен для записи")
                 return None
@@ -462,7 +472,7 @@ def create_booking(
 def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
     """Возвращает активную запись пользователя (если есть)."""
     with get_conn() as conn:
-        return conn.execute("""
+        return _execute_fetch(conn, """
             SELECT b.*
             FROM bookings b
             JOIN work_days wd ON wd.day_date = b.day_date
@@ -470,7 +480,7 @@ def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
               AND b.day_date::date >= CURRENT_DATE
             ORDER BY b.day_date, b.slot_time
             LIMIT 1
-        """, (user_id,)).fetchone()
+        """, (user_id,), fetch_one=True)
 
 
 def cancel_booking_by_user(user_id: int) -> Optional[sqlite3.Row]:
@@ -480,17 +490,17 @@ def cancel_booking_by_user(user_id: int) -> Optional[sqlite3.Row]:
     """
     try:
         with get_conn() as conn:
-            booking = conn.execute("""
+            booking = _execute_fetch(conn, """
                 SELECT * FROM bookings
                 WHERE user_id = ?
                   AND day_date::date >= CURRENT_DATE
                 ORDER BY day_date, slot_time
                 LIMIT 1
-            """, (user_id,)).fetchone()
+            """, (user_id,), fetch_one=True)
             if booking is None:
                 logger.warning(f"Нет активной записи для пользователя {user_id}")
                 return None
-            
+
             conn.execute("DELETE FROM bookings WHERE id=?", (booking["id"],))
             _release_slot(booking["day_date"], booking["slot_time"])
             logger.info(f"Запись пользователя {user_id} отменена")
@@ -507,9 +517,9 @@ def cancel_booking_by_id(booking_id: int, reason: Optional[str] = None) -> Optio
     """
     try:
         with get_conn() as conn:
-            booking = conn.execute(
-                "SELECT * FROM bookings WHERE id=?", (booking_id,)
-            ).fetchone()
+            booking = _execute_fetch(conn,
+                "SELECT * FROM bookings WHERE id=?", (booking_id,), fetch_one=True
+            )
             if booking is None:
                 logger.warning(f"Запись с ID {booking_id} не найдена")
                 return None
@@ -540,46 +550,48 @@ def cancel_booking_by_id(booking_id: int, reason: Optional[str] = None) -> Optio
 def get_bookings_for_day(day_date: str) -> list[sqlite3.Row]:
     """Все записи на указанный день."""
     with get_conn() as conn:
-        return conn.execute(
+        return _execute_fetch(conn,
             "SELECT * FROM bookings WHERE day_date=? ORDER BY slot_time",
             (day_date,)
-        ).fetchall()
+        )
 
 
 def get_booking_by_id(booking_id: int) -> Optional[sqlite3.Row]:
     with get_conn() as conn:
-        return conn.execute(
-            "SELECT * FROM bookings WHERE id=?", (booking_id,)
-        ).fetchone()
+        return _execute_fetch(conn,
+            "SELECT * FROM bookings WHERE id=?",
+            (booking_id,), fetch_one=True
+        )
 
 
 def get_all_future_bookings() -> list[sqlite3.Row]:
     """Все будущие записи (для восстановления задач APScheduler)."""
     with get_conn() as conn:
-        return conn.execute("""
-            SELECT * FROM bookings
+        return _execute_fetch(conn,
+            """SELECT * FROM bookings
             WHERE day_date::date >= CURRENT_DATE
-            ORDER BY day_date, slot_time
-        """).fetchall()
+            ORDER BY day_date, slot_time""",
+            ()
+        )
 
 
 def get_booking_history() -> list[sqlite3.Row]:
     """Все записи (включая отмененные) для анализа трафика."""
     with get_conn() as conn:
-        return conn.execute("""
+        return _execute_fetch(conn, """
             SELECT * FROM bookings
             ORDER BY day_date DESC, slot_time DESC
-        """).fetchall()
+        """)
 
 
 def get_cancelled_bookings() -> list[sqlite3.Row]:
     """Только отмененные записи с причинами."""
     with get_conn() as conn:
-        return conn.execute("""
+        return _execute_fetch(conn, """
             SELECT * FROM bookings
             WHERE cancelled_at IS NOT NULL
             ORDER BY day_date DESC, slot_time DESC
-        """).fetchall()
+        """)
 
 
 def update_booking(
