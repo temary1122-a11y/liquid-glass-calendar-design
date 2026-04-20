@@ -2,6 +2,16 @@
 # api/app.py — FastAPI приложение
 # ============================================================
 
+import logging
+import os
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -91,6 +101,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.on_event("startup")
 async def startup_event():
     """Инициализация БД при запуске"""
+    logger.info("=" * 60)
+    logger.info("🚀 Starting Lash Bot API...")
+    logger.info(f"📊 DATABASE_URL: {os.getenv('DATABASE_URL', 'Not set')[:30] if os.getenv('DATABASE_URL') else 'Not set'}...")
+    logger.info(f"🔧 PostgreSQL enabled: {bool(os.getenv('DATABASE_URL'))}")
+    logger.info("=" * 60)
     init_db()
 
 

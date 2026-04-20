@@ -15,12 +15,18 @@ logger = logging.getLogger(__name__)
 
 # PostgreSQL support
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Исправление для Render: postgres:// → postgresql://
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    logger.info("Fixed DATABASE_URL: postgres:// → postgresql://")
+
 USE_POSTGRES = DATABASE_URL is not None
 
 if USE_POSTGRES:
     import psycopg2
     from psycopg2.extras import RealDictCursor
-    logger.info("Using PostgreSQL database")
+    logger.info(f"Using PostgreSQL database: {DATABASE_URL[:30]}...")
 else:
     logger.info(f"Using SQLite database at {DB_PATH}")
 
@@ -83,6 +89,10 @@ def _execute_fetch(conn, query, params=None, fetch_one=False):
 # ────────────────────────────────────────────────────────────
 def init_db() -> None:
     """Создаёт все нужные таблицы, если они не существуют."""
+    logger.info("=" * 60)
+    logger.info("🔧 Initializing database...")
+    logger.info(f"USE_POSTGRES: {USE_POSTGRES}")
+    logger.info(f"DATABASE_URL: {DATABASE_URL[:30] if DATABASE_URL else 'Not set'}...")
     try:
         with get_conn() as conn:
             if USE_POSTGRES:
@@ -195,7 +205,8 @@ def init_db() -> None:
             else:
                 logger.error(f"Error initializing database: {e}")
                 raise
-    logger.info("БД инициализирована.")
+    logger.info("✅ Database initialized successfully!")
+    logger.info("=" * 60)
 
 
 # ────────────────────────────────────────────────────────────
