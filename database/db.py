@@ -31,6 +31,49 @@ else:
 
 
 # ────────────────────────────────────────────────────────────
+# CursorWrapper для совместимости SQLite и PostgreSQL
+# ────────────────────────────────────────────────────────────
+class CursorWrapper:
+    """Обёртка для cursor для автоматической замены ? на %s в PostgreSQL"""
+    def __init__(self, cursor, is_postgres: bool):
+        self._cursor = cursor
+        self.is_postgres = is_postgres
+
+    def execute(self, query, params=None):
+        if self.is_postgres and "?" in query:
+            query = query.replace("?", "%s")
+            # Замена datetime('now') на NOW() для PostgreSQL
+            query = query.replace("datetime('now')", "NOW()")
+            # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
+            if "INSERT OR IGNORE INTO" in query:
+                query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+        return self._cursor.execute(query, params if params is not None else ())
+
+    def executemany(self, query, params_list):
+        if self.is_postgres and "?" in query:
+            query = query.replace("?", "%s")
+            # Замена datetime('now') на NOW() для PostgreSQL
+            query = query.replace("datetime('now')", "NOW()")
+            # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
+            if "INSERT OR IGNORE INTO" in query:
+                query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+        return self._cursor.executemany(query, params_list)
+
+    @property
+    def lastrowid(self):
+        """
+        Для совместимости, но в PostgreSQL всегда None
+        Используйте RETURNING id для PostgreSQL
+        """
+        if hasattr(self._cursor, 'lastrowid'):
+            return self._cursor.lastrowid
+        return None
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+# ────────────────────────────────────────────────────────────
 # Контекстный менеджер подключения
 # ────────────────────────────────────────────────────────────
 @contextmanager
@@ -43,35 +86,7 @@ def get_conn():
         conn.autocommit = False
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # Wrapper для cursor.execute чтобы заменить ? на %s
-        class CursorWrapper:
-            def __init__(self, cursor):
-                self._cursor = cursor
-
-            def execute(self, query, params=None):
-                if USE_POSTGRES and "?" in query:
-                    query = query.replace("?", "%s")
-                    # Замена datetime('now') на NOW() для PostgreSQL
-                    query = query.replace("datetime('now')", "NOW()")
-                    # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
-                    if "INSERT OR IGNORE INTO" in query:
-                        query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
-                return self._cursor.execute(query, params if params is not None else ())
-
-            def executemany(self, query, params_list):
-                if USE_POSTGRES and "?" in query:
-                    query = query.replace("?", "%s")
-                    # Замена datetime('now') на NOW() для PostgreSQL
-                    query = query.replace("datetime('now')", "NOW()")
-                    # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
-                    if "INSERT OR IGNORE INTO" in query:
-                        query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
-                return self._cursor.executemany(query, params_list)
-
-            def __getattr__(self, name):
-                return getattr(self._cursor, name)
-
-        wrapped_cursor = CursorWrapper(cursor)
+        wrapped_cursor = CursorWrapper(cursor, is_postgres=True)
 
         try:
             yield wrapped_cursor
@@ -94,25 +109,24 @@ def get_conn():
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
 
-        # Wrapper для SQLite чтобы удалять ::date
-        class SQLiteCursorWrapper:
-            def __init__(self, conn):
-                self._conn = conn
+        # Оборачиваем connection в CursorWrapper для удаления ::date
+        wrapped_conn = CursorWrapper(conn, is_postgres=False)
 
-            def execute(self, query, params=None):
-                # SQLite не поддерживает ::date, удаляем его
-                query = query.replace("::date", "")
-                return self._conn.execute(query, params or ())
+        # Переопределяем execute для удаления ::date в SQLite
+        original_execute = wrapped_conn.execute
+        def sqlite_execute(query, params=None):
+            # SQLite не поддерживает ::date, удаляем его
+            query = query.replace("::date", "")
+            return original_execute(query, params)
+        wrapped_conn.execute = sqlite_execute
 
-            def executemany(self, query, params_list):
-                # SQLite не поддерживает ::date, удаляем его
-                query = query.replace("::date", "")
-                return self._conn.executemany(query, params_list)
-
-            def __getattr__(self, name):
-                return getattr(self._conn, name)
-
-        wrapped_conn = SQLiteCursorWrapper(conn)
+        # Переопределяем executemany для удаления ::date в SQLite
+        original_executemany = wrapped_conn.executemany
+        def sqlite_executemany(query, params_list):
+            # SQLite не поддерживает ::date, удаляем его
+            query = query.replace("::date", "")
+            return original_executemany(query, params_list)
+        wrapped_conn.executemany = sqlite_executemany
 
         try:
             yield wrapped_conn
@@ -534,49 +548,79 @@ def create_booking(
     Создаёт запись клиента.
     Возвращает booking_id или None если слот уже занят.
     """
+    conn = get_conn().__enter__()  # Получаем connection без context manager
+    is_postgres = USE_POSTGRES
+
+    # Оборачиваем cursor в CursorWrapper для PostgreSQL
+    if is_postgres:
+        cursor = CursorWrapper(conn.cursor(), is_postgres=True)
+    else:
+        cursor = conn
+
     try:
-        with get_conn() as conn:
-            # Проверяем, не занят ли слот
-            slot = _execute_fetch(conn,
-                "SELECT is_booked FROM time_slots WHERE day_date=? AND slot_time=?",
-                (day_date, slot_time), fetch_one=True
+        # Проверяем, не занят ли слот
+        cursor.execute(
+            "SELECT is_booked FROM time_slots WHERE day_date=? AND slot_time=?",
+            (day_date, slot_time)
+        )
+        slot = cursor.fetchone()
+
+        if slot is None or slot["is_booked"]:
+            logger.warning(f"Слот {day_date} {slot_time} недоступен для записи")
+            return None
+
+        # Защита от повторных записей: проверяем наличие активной записи у пользователя
+        if user_id != 0:  # user_id=0 для Mini App без Telegram
+            cursor.execute(
+                """SELECT id FROM bookings
+                   WHERE user_id=? AND status != 'completed' AND is_cancelled=0
+                   ORDER BY day_date DESC LIMIT 1""",
+                (user_id,)
             )
-            if slot is None or slot["is_booked"]:
-                logger.warning(f"Слот {day_date} {slot_time} недоступен для записи")
+            existing = cursor.fetchone()
+            if existing:
+                logger.warning(f"Пользователь {user_id} уже имеет активную запись")
                 return None
 
-            # Защита от повторных записей: проверяем наличие активной записи у пользователя
-            if user_id != 0:  # user_id=0 для Mini App без Telegram
-                existing = _execute_fetch(conn,
-                    """SELECT id FROM bookings
-                       WHERE user_id=? AND status != 'completed' AND is_cancelled=0
-                       ORDER BY day_date DESC LIMIT 1""",
-                    (user_id,), fetch_one=True
-                )
-                if existing:
-                    logger.warning(f"Пользователь {user_id} уже имеет активную запись")
-                    return None
-
-            cursor = conn.execute(
+        # INSERT в bookings с RETURNING для PostgreSQL
+        if is_postgres:
+            cursor.execute(
+                """INSERT INTO bookings
+                   (user_id, username, client_name, phone, day_date, slot_time, service_id, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   RETURNING id""",
+                (user_id, username, client_name, phone, day_date, slot_time, service_id, "confirmed")
+            )
+            result = cursor.fetchone()
+            booking_id = result["id"] if result else None
+        else:
+            # SQLite использует lastrowid
+            cursor.execute(
                 """INSERT INTO bookings
                    (user_id, username, client_name, phone, day_date, slot_time, service_id)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (user_id, username, client_name, phone, day_date, slot_time, service_id)
             )
             booking_id = cursor.lastrowid
-            # Помечаем слот как занятый
-            conn.execute(
-                "UPDATE time_slots SET is_booked=1 WHERE day_date=? AND slot_time=?",
-                (day_date, slot_time)
-            )
-            logger.info(f"Запись создана: user_id={user_id}, {day_date} {slot_time}")
-            return booking_id
-    except sqlite3.IntegrityError as e:
-        logger.error(f"IntegrityError при создании записи: {e}")
-        return None
+
+        # Помечаем слот как занятый
+        cursor.execute(
+            "UPDATE time_slots SET is_booked=1 WHERE day_date=? AND slot_time=?",
+            (day_date, slot_time)
+        )
+
+        conn.commit()
+        logger.info(f"Запись создана: user_id={user_id}, {day_date} {slot_time}, booking_id={booking_id}")
+        return booking_id
+
     except Exception as e:
+        conn.rollback()
         logger.error(f"Ошибка создания записи: {e}")
         return None
+    finally:
+        if is_postgres and hasattr(cursor, 'close'):
+            cursor.close()
+        conn.__exit__(None, None, None)
 
 
 def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
