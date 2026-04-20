@@ -76,7 +76,7 @@ export function useClientsAPI(): UseClientsAPIReturn {
               username: booking.username,
               userId: booking.user_id ? String(booking.user_id) : undefined,
               note: booking.note,
-              status: 'confirmed',
+              status: booking.status || 'confirmed',
             });
           }
         }
