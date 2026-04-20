@@ -59,8 +59,6 @@ def get_conn():
                         values_pos = query.find("VALUES")
                         if values_pos != -1:
                             query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
-                    # Замена ::date на универсальный синтаксис для PostgreSQL
-                    query = query.replace("::date", "")
                 return self._cursor.execute(query, params if params is not None else ())
 
             def executemany(self, query, params_list):
@@ -75,8 +73,6 @@ def get_conn():
                         values_pos = query.find("VALUES")
                         if values_pos != -1:
                             query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
-                    # Замена ::date на универсальный синтаксис для PostgreSQL
-                    query = query.replace("::date", "")
                 return self._cursor.executemany(query, params_list)
 
             def __getattr__(self, name):
@@ -104,8 +100,29 @@ def get_conn():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
+
+        # Wrapper для SQLite чтобы удалять ::date
+        class SQLiteCursorWrapper:
+            def __init__(self, conn):
+                self._conn = conn
+
+            def execute(self, query, params=None):
+                # SQLite не поддерживает ::date, удаляем его
+                query = query.replace("::date", "")
+                return self._conn.execute(query, params or ())
+
+            def executemany(self, query, params_list):
+                # SQLite не поддерживает ::date, удаляем его
+                query = query.replace("::date", "")
+                return self._conn.executemany(query, params_list)
+
+            def __getattr__(self, name):
+                return getattr(self._conn, name)
+
+        wrapped_conn = SQLiteCursorWrapper(conn)
+
         try:
-            yield conn
+            yield wrapped_conn
             conn.commit()
         except Exception:
             conn.rollback()
@@ -121,12 +138,13 @@ def _execute_fetch(conn, query, params=None, fetch_one=False):
         query = query.replace("?", "%s")
         # Замена datetime('now') на NOW() для PostgreSQL
         query = query.replace("datetime('now')", "NOW()")
-        # Замена ::date на универсальный синтаксис для PostgreSQL
-        query = query.replace("::date", "")
+        # PostgreSQL поддерживает ::date, оставляем как есть
         conn.execute(query, params or ())
         return conn.fetchone() if fetch_one else conn.fetchall()
     else:
         # SQLite: execute returns result directly
+        # SQLite не поддерживает ::date, удаляем его
+        query = query.replace("::date", "")
         result = conn.execute(query, params or ())
         return result.fetchone() if fetch_one else result.fetchall()
 
