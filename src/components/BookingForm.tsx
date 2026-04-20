@@ -7,6 +7,7 @@ import { Check, Phone, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { CONTACT_INFO, MESSAGE_TEMPLATES } from '../config';
+import { apiClient } from '../api/client';
 
 interface BookingFormProps {
   date: Date;
@@ -53,15 +54,7 @@ export default function BookingForm({ date, time, availableSlots, onTimeChange, 
         service_id: 'classic',
       };
 
-      const response = await fetch('/api/booking/book', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bookingData),
-      });
-
-      const result = await response.json();
+      const result = await apiClient.createBooking(bookingData);
 
       if (!result.success) {
         alert(`Ошибка создания записи: ${result.message}`);
