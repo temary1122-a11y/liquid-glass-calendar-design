@@ -165,18 +165,18 @@ async def get_work_days_endpoint(request: Request, admin_id: int = Depends(verif
     work_days = get_all_work_days()
     result = []
     for day in work_days:
-        slots = get_all_slots(day[1])  # day[1] = day_date
+        slots = get_all_slots(day["day_date"])
         # Формируем слоты с полной информацией
         slot_info = []
         for slot in slots:
             slot_info.append({
-                'time': slot[2],  # slot_time
-                'is_booked': bool(slot[3])  # is_booked
+                'time': slot["slot_time"],
+                'is_booked': bool(slot["is_booked"])
             })
         result.append(
             WorkDayInfo(
-                date=day[1],
-                is_closed=bool(day[2]),
+                date=day["day_date"],
+                is_closed=bool(day["is_closed"]),
                 slots=slot_info,
             )
         )
@@ -200,14 +200,14 @@ async def get_bookings_for_date(request: Request, date: str, admin_id: int = Dep
         result = []
         for booking in bookings:
             result.append({
-                'id': booking[0],
-                'user_id': booking[1],
-                'username': booking[2],
-                'client_name': booking[3],
-                'phone': booking[4],
-                'day_date': booking[5],
-                'slot_time': booking[6],
-                'service_id': booking[7],
+                'id': booking["id"],
+                'user_id': booking["user_id"],
+                'username': booking["username"],
+                'client_name': booking["client_name"],
+                'phone': booking["phone"],
+                'day_date': booking["day_date"],
+                'slot_time': booking["slot_time"],
+                'service_id': booking["service_id"],
             })
 
         return result

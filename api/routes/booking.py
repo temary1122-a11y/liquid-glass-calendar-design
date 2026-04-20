@@ -50,17 +50,17 @@ async def get_available_dates(request: Request):
         result = []
 
         for day in work_days:
-            day_date = day[1]  # day_date
+            day_date = day["day_date"]
             slots = get_free_slots(day_date)
             time_slots = [
-                TimeSlot(time=slot[2], available=True)  # slot_time
+                TimeSlot(time=slot["slot_time"], available=True)
                 for slot in slots
             ]
             result.append(
                 WorkDay(
                     date=day_date,
                     slots=time_slots,
-                    is_closed=bool(day[2])  # is_closed
+                    is_closed=bool(day["is_closed"])
                 )
             )
 
@@ -77,7 +77,7 @@ async def create_booking_endpoint(request: Request, booking: BookingRequest):
     try:
         # Проверяем доступность слота
         available_slots = get_free_slots(booking.date)
-        slot_times = [slot[1] for slot in available_slots]  # slot[1] = slot_time
+        slot_times = [slot["slot_time"] for slot in available_slots]
         if booking.time not in slot_times:
             return BookingResponse(
                 success=False,
@@ -141,11 +141,11 @@ async def get_my_bookings(user_id: int):
 
         return [
             MyBooking(
-                id=booking[0],  # id
-                date=booking[5],  # day_date
-                time=booking[6],  # slot_time
-                name=booking[3],  # client_name
-                phone=booking[4]  # phone
+                id=booking["id"],
+                date=booking["day_date"],
+                time=booking["slot_time"],
+                name=booking["client_name"],
+                phone=booking["phone"]
             )
         ]
     except Exception as e:
