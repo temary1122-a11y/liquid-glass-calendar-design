@@ -41,42 +41,36 @@ export function useClientsAPI(): UseClientsAPIReturn {
       setIsLoading(true);
       setError(null);
 
-      // Получаем все рабочие дни
-      const workDaysResponse = await fetch(`${BACKEND_URL}/api/admin/work-days`, {
+      // Получаем все рабочие дни со слотами и bookings за один запрос
+      const response = await fetch(`${BACKEND_URL}/api/admin/work-days-with-bookings`, {
         headers: {
           'x-admin-id': ADMIN_ID,
         },
       });
 
-      if (!workDaysResponse.ok) {
-        throw new Error(`Failed to fetch work days: ${workDaysResponse.status}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch work days with bookings: ${response.status}`);
       }
 
-      const workDays = await workDaysResponse.json();
+      const workDays = await response.json();
 
-      // Загружаем клиентов для каждого дня
+      // Извлекаем клиентов из данных
       const allClients: Client[] = [];
-      for (const day of workDays) {
-        const bookingsResponse = await fetch(`${BACKEND_URL}/api/admin/bookings/${day.date}`, {
-          headers: {
-            'x-admin-id': ADMIN_ID,
-          },
-        });
-
-        if (bookingsResponse.ok) {
-          const bookings = await bookingsResponse.json();
-          for (const booking of bookings) {
+      for (const dayDate in workDays) {
+        const day = workDays[dayDate];
+        for (const slot of day.slots) {
+          if (slot.booking) {
             allClients.push({
-              id: booking.id,
-              name: booking.client_name,
-              phone: booking.phone,
-              date: booking.day_date,
-              time: booking.slot_time,
-              service: booking.service_id || 'Запись',
-              username: booking.username,
-              userId: booking.user_id ? String(booking.user_id) : undefined,
-              note: booking.note,
-              status: booking.status || 'confirmed',
+              id: slot.booking.id,
+              name: slot.booking.client_name,
+              phone: slot.booking.phone,
+              date: dayDate,
+              time: slot.time,
+              service: 'Запись',
+              username: slot.booking.username,
+              userId: slot.booking.user_id ? String(slot.booking.user_id) : undefined,
+              note: slot.booking.note,
+              status: slot.booking.status || 'confirmed',
             });
           }
         }

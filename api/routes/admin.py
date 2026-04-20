@@ -31,6 +31,7 @@ from database.db import (
     get_all_slots,
     get_all_work_days,
     get_work_days_with_slots,
+    get_work_days_with_bookings,
     close_day,
     open_day,
     create_booking,
@@ -174,6 +175,13 @@ async def get_work_days_endpoint(request: Request, admin_id: int = Depends(verif
             )
         )
     return result
+
+
+@router.get("/work-days-with-bookings")
+@limiter.limit("200/minute")
+async def get_work_days_with_bookings_endpoint(request: Request, admin_id: int = Depends(verify_admin)):
+    """Получить все рабочие дни со слотами и bookings за один запрос"""
+    return get_work_days_with_bookings()
 
 
 @router.get("/bookings/{date}")

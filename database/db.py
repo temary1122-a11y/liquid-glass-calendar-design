@@ -511,6 +511,63 @@ def get_work_days_with_slots() -> list[dict]:
         return list(work_days.values())
 
 
+def get_work_days_with_bookings() -> dict:
+    """
+    Оптимизированная функция: возвращает все рабочие дни со слотами и bookings за один запрос.
+    Решает проблему "сначала все свободные, потом занятые становятся зелеными".
+    """
+    with get_conn() as conn:
+        # Один запрос с LEFT JOIN для получения слотов и bookings
+        result = _execute_fetch(conn, """
+            SELECT
+                wd.day_date,
+                wd.is_closed,
+                ts.slot_time,
+                ts.is_booked,
+                b.id as booking_id,
+                b.client_name,
+                b.phone,
+                b.username,
+                b.user_id,
+                b.note,
+                b.status as booking_status
+            FROM work_days wd
+            LEFT JOIN time_slots ts ON ts.day_date = wd.day_date
+            LEFT JOIN bookings b ON b.day_date = wd.day_date AND b.slot_time = ts.slot_time
+            ORDER BY wd.day_date, ts.slot_time
+        """)
+
+        # Группируем результаты по дням
+        work_days = {}
+        for row in result:
+            day_date = row["day_date"]
+            if day_date not in work_days:
+                work_days[day_date] = {
+                    "day_date": day_date,
+                    "is_closed": row["is_closed"],
+                    "slots": []
+                }
+            if row["slot_time"]:  # Если есть слот
+                slot_data = {
+                    "time": row["slot_time"],
+                    "is_booked": bool(row["is_booked"])
+                }
+                # Если есть booking, добавляем информацию о нем
+                if row["booking_id"]:
+                    slot_data["booking"] = {
+                        "id": row["booking_id"],
+                        "client_name": row["client_name"],
+                        "phone": row["phone"],
+                        "username": row["username"],
+                        "user_id": row["user_id"],
+                        "note": row["note"],
+                        "status": row["booking_status"] or "confirmed"
+                    }
+                work_days[day_date]["slots"].append(slot_data)
+
+        return work_days
+
+
 def update_slot_time(old_date: str, old_time: str, new_date: str, new_time: str) -> bool:
     """Обновляет время слота (для редактирования пустого слота без клиента)."""
     try:

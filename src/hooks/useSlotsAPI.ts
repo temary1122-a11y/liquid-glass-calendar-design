@@ -47,12 +47,6 @@ function createHmacSignatureSync(adminId: string, secretKey: string): string {
   return Math.abs(hash).toString(16).padStart(64, '0').slice(0, 64);
 }
 
-interface WorkDayInfo {
-  date: string;
-  is_closed: boolean;
-  slots: Array<{ time: string; is_booked: boolean }>;
-}
-
 interface UseSlotsAPIReturn {
   slots: Record<string, string[]>;
   isLoading: boolean;
@@ -76,7 +70,7 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`${BACKEND_URL}/api/admin/work-days`, {
+      const response = await fetch(`${BACKEND_URL}/api/admin/work-days-with-bookings`, {
         headers: {
           'x-admin-id': ADMIN_ID,
           'x-admin-signature': createHmacSignatureSync(ADMIN_ID, ADMIN_SECRET_KEY),
@@ -87,15 +81,16 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
         throw new Error(`Failed to fetch slots: ${response.status}`);
       }
 
-      const workDays: WorkDayInfo[] = await response.json();
+      const workDays = await response.json();
 
       // Преобразуем в Record<string, string[]>
       const slotsMap: Record<string, string[]> = {};
-      workDays.forEach((day) => {
+      for (const dayDate in workDays) {
+        const day = workDays[dayDate];
         if (!day.is_closed) {
-          slotsMap[day.date] = day.slots.map((s) => s.time);
+          slotsMap[dayDate] = day.slots.map((s: any) => s.time);
         }
-      });
+      }
 
       setSlots(slotsMap);
     } catch (err) {
@@ -104,7 +99,7 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
     } finally {
       setIsLoading(false);
     }
-  }, [ADMIN_ID]);
+  }, [ADMIN_ID, ADMIN_SECRET_KEY]);
 
   // Перезагрузка слотов
   const refreshSlots = useCallback(async () => {
