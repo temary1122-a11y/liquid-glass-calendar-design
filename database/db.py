@@ -59,6 +59,8 @@ def get_conn():
                         values_pos = query.find("VALUES")
                         if values_pos != -1:
                             query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
+                    # Замена ::date на универсальный синтаксис для PostgreSQL
+                    query = query.replace("::date", "")
                 return self._cursor.execute(query, params if params is not None else ())
 
             def executemany(self, query, params_list):
@@ -73,6 +75,8 @@ def get_conn():
                         values_pos = query.find("VALUES")
                         if values_pos != -1:
                             query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
+                    # Замена ::date на универсальный синтаксис для PostgreSQL
+                    query = query.replace("::date", "")
                 return self._cursor.executemany(query, params_list)
 
             def __getattr__(self, name):
@@ -115,6 +119,10 @@ def _execute_fetch(conn, query, params=None, fetch_one=False):
     if USE_POSTGRES:
         # PostgreSQL: replace ? with %s and execute
         query = query.replace("?", "%s")
+        # Замена datetime('now') на NOW() для PostgreSQL
+        query = query.replace("datetime('now')", "NOW()")
+        # Замена ::date на универсальный синтаксис для PostgreSQL
+        query = query.replace("::date", "")
         conn.execute(query, params or ())
         return conn.fetchone() if fetch_one else conn.fetchall()
     else:

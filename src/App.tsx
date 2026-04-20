@@ -17,7 +17,7 @@ export default function App() {
 
   // WebSocket connection for real-time updates
   const { isConnected, lastMessage } = useWebSocket(
-    import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws'
+    import.meta.env.VITE_WS_URL || 'wss://liquid-glass-calendar-design.onrender.com/ws'
   );
 
   // Log WebSocket connection status
