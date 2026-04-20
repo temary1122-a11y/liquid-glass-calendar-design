@@ -47,7 +47,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # Rate limiter instance
-limiter = Limiter(key_func=lambda r: "default")
+def get_key_func(r=None):
+    return "default"
+
+limiter = Limiter(key_func=get_key_func)
 
 # Временное хранилище настроек (в продакшене — в БД)
 gui_settings = GUISettings(
