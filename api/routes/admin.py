@@ -191,11 +191,12 @@ async def get_bookings_for_date(request: Request, date: str, admin_id: int = Dep
     from database.db import get_conn
 
     with get_conn() as conn:
-        bookings = conn.execute(
+        conn.execute(
             """SELECT id, user_id, username, client_name, phone, day_date, slot_time, service_id
                FROM bookings WHERE day_date = ? ORDER BY slot_time""",
             (date,)
-        ).fetchall()
+        )
+        bookings = conn.fetchall()
 
         result = []
         for booking in bookings:
@@ -254,19 +255,15 @@ async def cleanup_database_endpoint(request: Request, admin_id: int = Depends(ve
     from database.db import get_conn
 
     with get_conn() as conn:
-        cursor = conn.cursor()
-
         # Удаляем все данные
-        cursor.execute("DELETE FROM bookings")
-        deleted_bookings = cursor.rowcount
+        conn.execute("DELETE FROM bookings")
+        deleted_bookings = conn.rowcount
 
-        cursor.execute("DELETE FROM time_slots")
-        deleted_slots = cursor.rowcount
+        conn.execute("DELETE FROM time_slots")
+        deleted_slots = conn.rowcount
 
-        cursor.execute("DELETE FROM work_days")
-        deleted_work_days = cursor.rowcount
-
-        conn.commit()
+        conn.execute("DELETE FROM work_days")
+        deleted_work_days = conn.rowcount
 
     return {
         "success": True,
@@ -285,7 +282,7 @@ async def create_client_endpoint(request: Request, body: AdminClientRequest, adm
 
     # Создаем запись с user_id=0 если это ручная запись
     user_id = body.user_id if body.user_id else 0
-    booking = create_booking(
+    booking_id = create_booking(
         user_id=user_id,
         username=body.username,
         client_name=body.name,
@@ -295,8 +292,8 @@ async def create_client_endpoint(request: Request, body: AdminClientRequest, adm
         service_id="manual",  # Ручная запись
     )
 
-    if booking:
-        return {"success": True, "message": "Клиент добавлен", "booking_id": booking["id"]}
+    if booking_id:
+        return {"success": True, "message": "Клиент добавлен", "booking_id": booking_id}
     else:
         return {"success": False, "message": "Не удалось добавить клиента"}
 
