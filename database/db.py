@@ -25,7 +25,6 @@ USE_POSTGRES = DATABASE_URL is not None
 
 if USE_POSTGRES:
     import psycopg2
-    from psycopg2.extras import RealDictCursor
     logger.info(f"Using PostgreSQL database: {DATABASE_URL[:30]}...")
 else:
     logger.info(f"Using SQLite database at {DB_PATH}")
@@ -38,10 +37,10 @@ else:
 def get_conn():
     """Возвращает соединение с автокоммитом/откатом."""
     if USE_POSTGRES:
-        # PostgreSQL connection
+        # PostgreSQL connection (без RealDictCursor чтобы возвращать tuple как SQLite)
         conn = psycopg2.connect(DATABASE_URL)
         conn.autocommit = False
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         try:
             yield cursor
             conn.commit()
