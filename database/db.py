@@ -41,6 +41,19 @@ def get_conn():
         conn = psycopg2.connect(DATABASE_URL)
         conn.autocommit = False
         cursor = conn.cursor()
+
+        # Обертка для cursor.execute чтобы заменить ? на %s
+        original_execute = cursor.execute
+
+        def patched_execute(query, params=None):
+            if USE_POSTGRES and "?" in query:
+                query = query.replace("?", "%s")
+                # Замена datetime('now') на NOW() для PostgreSQL
+                query = query.replace("datetime('now')", "NOW()")
+            return original_execute(query, params or ())
+
+        cursor.execute = patched_execute
+
         try:
             yield cursor
             conn.commit()
@@ -74,7 +87,8 @@ def get_conn():
 def _execute_fetch(conn, query, params=None, fetch_one=False):
     """Helper for execute + fetch compatibility between SQLite and PostgreSQL"""
     if USE_POSTGRES:
-        # PostgreSQL: execute returns None, use cursor for fetch
+        # PostgreSQL: replace ? with %s and execute
+        query = query.replace("?", "%s")
         conn.execute(query, params or ())
         return conn.fetchone() if fetch_one else conn.fetchall()
     else:
