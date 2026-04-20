@@ -31,7 +31,7 @@ from database.db import (
 router = APIRouter(prefix="/api/booking", tags=["booking"])
 
 # Rate limiter instance
-limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.get("x-forwarded-for", ""))
+limiter = Limiter(key_func=lambda r: r.client.host if r and r.client else (r.headers.get("x-forwarded-for", "") if r else ""))
 
 
 @router.get("/available-dates", response_model=List[WorkDay])

@@ -42,20 +42,25 @@ def get_conn():
         conn.autocommit = False
         cursor = conn.cursor()
 
-        # Обертка для cursor.execute чтобы заменить ? на %s
-        original_execute = cursor.execute
+        # Wrapper для cursor.execute чтобы заменить ? на %s
+        class CursorWrapper:
+            def __init__(self, cursor):
+                self._cursor = cursor
 
-        def patched_execute(query, params=None):
-            if USE_POSTGRES and "?" in query:
-                query = query.replace("?", "%s")
-                # Замена datetime('now') на NOW() для PostgreSQL
-                query = query.replace("datetime('now')", "NOW()")
-            return original_execute(query, params or ())
+            def execute(self, query, params=None):
+                if USE_POSTGRES and "?" in query:
+                    query = query.replace("?", "%s")
+                    # Замена datetime('now') на NOW() для PostgreSQL
+                    query = query.replace("datetime('now')", "NOW()")
+                return self._cursor.execute(query, params if params is not None else ())
 
-        cursor.execute = patched_execute
+            def __getattr__(self, name):
+                return getattr(self._cursor, name)
+
+        wrapped_cursor = CursorWrapper(cursor)
 
         try:
-            yield cursor
+            yield wrapped_cursor
             conn.commit()
         except Exception:
             conn.rollback()

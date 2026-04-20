@@ -41,7 +41,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
 
 
 # Rate limiter setup
-limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.get("x-forwarded-for", ""))
+limiter = Limiter(key_func=lambda r: r.client.host if r and r.client else (r.headers.get("x-forwarded-for", "") if r else ""))
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

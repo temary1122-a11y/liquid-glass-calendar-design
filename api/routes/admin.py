@@ -7,6 +7,9 @@ from slowapi import Limiter
 import hmac
 import hashlib
 import logging
+
+logger = logging.getLogger(__name__)
+
 from api.models import (
     GUISettings,
     Service,
@@ -44,7 +47,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # Rate limiter instance
-limiter = Limiter(key_func=lambda: "default")
+limiter = Limiter(key_func=lambda r: "default")
 
 # Временное хранилище настроек (в продакшене — в БД)
 gui_settings = GUISettings(
