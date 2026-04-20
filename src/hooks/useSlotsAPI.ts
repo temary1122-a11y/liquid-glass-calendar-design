@@ -106,6 +106,11 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
     }
   }, [ADMIN_ID]);
 
+  // Перезагрузка слотов
+  const refreshSlots = useCallback(async () => {
+    await fetchSlots();
+  }, [fetchSlots]);
+
   // Добавление// Adding slot via API
   const addSlot = useCallback(async (date: string, time: string) => {
     try {
@@ -144,14 +149,17 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
         ...prev,
         [date]: [...(prev[date] ?? []), time].sort(),
       }));
-      
+
+      // Refresh from server to confirm data is saved
+      await refreshSlots();
+
       console.log('DEBUG: Slot added successfully', { date, time });
     } catch (err) {
       console.error('Error adding slot:', err);
       setError(err instanceof Error ? err.message : 'Failed to add slot');
       throw err;
     }
-  }, [ADMIN_ID, ADMIN_SECRET_KEY]);
+  }, [ADMIN_ID, ADMIN_SECRET_KEY, refreshSlots]);
 
   // Удаление слота через API
   const removeSlot = useCallback(async (date: string, time: string) => {
@@ -178,17 +186,15 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
         ...prev,
         [date]: (prev[date] ?? []).filter((t) => t !== time),
       }));
+
+      // Refresh from server to confirm data is saved
+      await refreshSlots();
     } catch (err) {
       console.error('Error removing slot:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete slot');
       throw err;
     }
-  }, [ADMIN_ID]);
-
-  // Перезагрузка слотов
-  const refreshSlots = useCallback(async () => {
-    await fetchSlots();
-  }, [fetchSlots]);
+  }, [ADMIN_ID, refreshSlots]);
 
   // Загружаем слоты при монтировании
   useEffect(() => {
