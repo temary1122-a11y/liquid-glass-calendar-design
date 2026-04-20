@@ -67,18 +67,26 @@ async def cmd_mybooking(message: Message):
     """Быстрая команда для просмотра своей записи."""
     from database import get_user_booking
     from utils import format_date_ru
-    
+
     booking = get_user_booking(message.from_user.id)
     if not booking:
         text = "📭 <b>У вас нет активных записей.</b>\n\nЗапишитесь через кнопку «📅 Записаться»."
     else:
+        status = booking.get('status', 'pending')
+        status_text = {
+            'pending': '⏳ Ожидает подтверждения',
+            'confirmed': '✅ Подтверждена',
+            'completed': '🎉 Исполнена'
+        }.get(status, '⏳ Ожидает подтверждения')
+
         text = (
             f"📋 <b>Ваша запись</b>\n\n"
             f"🆔 <code>#{booking['id']}</code>\n"
             f"📅 <b>Дата:</b> {format_date_ru(booking['day_date'])}\n"
             f"🕐 <b>Время:</b> {booking['slot_time']}\n"
             f"👤 <b>Имя:</b> {booking['client_name']}\n"
-            f"📞 <b>Телефон:</b> {booking['phone']}\n\n"
+            f"📞 <b>Телефон:</b> {booking['phone']}\n"
+            f"📊 <b>Статус:</b> {status_text}\n\n"
             f"Для отмены нажмите «❌ Отменить запись»."
         )
     await message.answer(text, parse_mode="HTML", reply_markup=back_to_main_kb())
@@ -186,13 +194,21 @@ async def my_booking(callback: CallbackQuery):
     if not booking:
         text = "📭 <b>У вас нет активных записей.</b>\n\nЗапишитесь через кнопку «📅 Записаться»."
     else:
+        status = booking.get('status', 'pending')
+        status_text = {
+            'pending': '⏳ Ожидает подтверждения',
+            'confirmed': '✅ Подтверждена',
+            'completed': '🎉 Исполнена'
+        }.get(status, '⏳ Ожидает подтверждения')
+
         text = (
             f"📋 <b>Ваша запись</b>\n\n"
             f"🆔 <code>#{booking['id']}</code>\n"
             f"📅 <b>Дата:</b> {format_date_ru(booking['day_date'])}\n"
             f"🕐 <b>Время:</b> {booking['slot_time']}\n"
             f"👤 <b>Имя:</b> {booking['client_name']}\n"
-            f"📞 <b>Телефон:</b> {booking['phone']}\n\n"
+            f"📞 <b>Телефон:</b> {booking['phone']}\n"
+            f"📊 <b>Статус:</b> {status_text}\n\n"
             f"Для отмены нажмите «❌ Отменить запись»."
         )
     try:

@@ -116,3 +116,8 @@ class DeleteClientRequest(BaseModel):
     """Запрос на удаление клиента"""
     date: str
     time: str
+
+
+class MarkBookingCompletedRequest(BaseModel):
+    """Запрос на пометку записи как исполненной"""
+    booking_id: int

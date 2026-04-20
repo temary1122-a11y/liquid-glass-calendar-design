@@ -119,9 +119,21 @@ def init_db() -> None:
                         cancelled_at TEXT,
                         service_id   TEXT,
                         note         TEXT,
+                        status       TEXT    NOT NULL DEFAULT 'pending',
                         UNIQUE(day_date, slot_time)
                     );
                 """)
+
+                # Миграция: добавляем поле status если таблица уже существует
+                try:
+                    conn.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'")
+                    logger.info("Миграция PostgreSQL: поле status добавлено в bookings")
+                except Exception as migration_error:
+                    if "duplicate column" in str(migration_error).lower():
+                        logger.info("Поле status уже существует в PostgreSQL")
+                    else:
+                        logger.warning(f"Ошибка миграции PostgreSQL: {migration_error}")
+
             else:
                 # SQLite schema
                 conn.executescript("""
@@ -154,9 +166,20 @@ def init_db() -> None:
                         cancelled_at TEXT,
                         service_id   TEXT,
                         note         TEXT,
+                        status       TEXT    NOT NULL DEFAULT 'pending',
                         UNIQUE(day_date, slot_time)
                     );
                 """)
+
+                # Миграция: добавляем поле status если таблица уже существует
+                try:
+                    conn.execute("ALTER TABLE bookings ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'")
+                    logger.info("Миграция SQLite: поле status добавлено в bookings")
+                except Exception as migration_error:
+                    if "duplicate column" in str(migration_error).lower():
+                        logger.info("Поле status уже существует в SQLite")
+                    else:
+                        logger.warning(f"Ошибка миграции SQLite: {migration_error}")
     except Exception as e:
         if USE_POSTGRES:
             # PostgreSQL might raise duplicate column error
@@ -447,6 +470,18 @@ def create_booking(
                 logger.warning(f"Слот {day_date} {slot_time} недоступен для записи")
                 return None
 
+            # Защита от повторных записей: проверяем наличие активной записи у пользователя
+            if user_id != 0:  # user_id=0 для Mini App без Telegram
+                existing = _execute_fetch(conn,
+                    """SELECT id FROM bookings
+                       WHERE user_id=? AND status != 'completed' AND is_cancelled=0
+                       ORDER BY day_date DESC LIMIT 1""",
+                    (user_id,), fetch_one=True
+                )
+                if existing:
+                    logger.warning(f"Пользователь {user_id} уже имеет активную запись")
+                    return None
+
             cursor = conn.execute(
                 """INSERT INTO bookings
                    (user_id, username, client_name, phone, day_date, slot_time, service_id)
@@ -470,7 +505,7 @@ def create_booking(
 
 
 def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
-    """Возвращает активную запись пользователя (если есть)."""
+    """Возвращает активную запись пользователя (если есть). Не показывает completed записи."""
     with get_conn() as conn:
         return _execute_fetch(conn, """
             SELECT b.*
@@ -478,6 +513,7 @@ def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
             JOIN work_days wd ON wd.day_date = b.day_date
             WHERE b.user_id = ?
               AND b.day_date::date >= CURRENT_DATE
+              AND b.status != 'completed'
             ORDER BY b.day_date, b.slot_time
             LIMIT 1
         """, (user_id,), fetch_one=True)
@@ -547,6 +583,32 @@ def cancel_booking_by_id(booking_id: int, reason: Optional[str] = None) -> Optio
         return None
 
 
+def mark_booking_completed(booking_id: int) -> bool:
+    """
+    Помечает запись как исполненную (completed).
+    Возвращает True если успешно, False если запись не найдена.
+    """
+    try:
+        with get_conn() as conn:
+            booking = _execute_fetch(conn,
+                "SELECT * FROM bookings WHERE id=?",
+                (booking_id,), fetch_one=True
+            )
+            if booking is None:
+                logger.warning(f"Запись с ID {booking_id} не найдена")
+                return False
+
+            conn.execute(
+                "UPDATE bookings SET status='completed' WHERE id=?",
+                (booking_id,)
+            )
+            logger.info(f"Запись {booking_id} помечена как исполненная")
+            return True
+    except Exception as e:
+        logger.error(f"Ошибка пометки записи {booking_id} как исполненной: {e}")
+        return False
+
+
 def get_bookings_for_day(day_date: str) -> list[sqlite3.Row]:
     """Все записи на указанный день."""
     with get_conn() as conn:
@@ -602,6 +664,7 @@ def update_booking(
     slot_time: str,
     username: Optional[str] = None,
     note: Optional[str] = None,
+    status: Optional[str] = None,
 ) -> Optional[sqlite3.Row]:
     """Обновляет запись клиента и обновляет статус слотов."""
     try:
@@ -633,11 +696,18 @@ def update_booking(
                 logger.info(f"Слоты обновлены: {old_date} {old_time} -> {day_date} {slot_time}")
             
             # Обновляем запись клиента
-            cursor.execute("""
-                UPDATE bookings
-                SET client_name=?, phone=?, day_date=?, slot_time=?, username=?, note=?
-                WHERE id=?
-            """, (client_name, phone, day_date, slot_time, username, note, booking_id))
+            if status:
+                cursor.execute("""
+                    UPDATE bookings
+                    SET client_name=?, phone=?, day_date=?, slot_time=?, username=?, note=?, status=?
+                    WHERE id=?
+                """, (client_name, phone, day_date, slot_time, username, note, status, booking_id))
+            else:
+                cursor.execute("""
+                    UPDATE bookings
+                    SET client_name=?, phone=?, day_date=?, slot_time=?, username=?, note=?
+                    WHERE id=?
+                """, (client_name, phone, day_date, slot_time, username, note, booking_id))
             conn.commit()
             logger.info(f"Запись обновлена: booking_id={booking_id}")
             return get_booking_by_id(booking_id)

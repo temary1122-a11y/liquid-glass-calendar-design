@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import BookingForm from './BookingForm';
@@ -18,10 +18,6 @@ import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import { vibrateMedium, vibrateNavigation } from '../utils/vibration';
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-// Тестовые данные удалены - слоты загружаются из API
-const MOCK_SLOTS: Record<string, string[]> = {};
 
 const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const VISIBLE_SLOTS = 3; // slots shown before overflow
@@ -238,6 +234,37 @@ export default function Calendar() {
   const [expandedWeek, setExpandedWeek] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; time: string; availableSlots: string[] } | null>(null);
   const [bookingFormOpen, setBookingFormOpen] = useState(false);
+  const [availableDates, setAvailableDates] = useState<Record<string, string[]>>({});
+
+  // Загрузка доступных дат из API
+  useEffect(() => {
+    const fetchAvailableDates = async () => {
+      try {
+        const response = await fetch('/api/booking/available-dates');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const formattedData: Record<string, string[]> = {};
+
+        data.forEach((item: any) => {
+          if (!item.is_closed) {
+            const date = item.date;
+            const availableSlots = item.slots
+              .filter((slot: any) => slot.available)
+              .map((slot: any) => slot.time);
+            formattedData[date] = availableSlots;
+          }
+        });
+
+        setAvailableDates(formattedData);
+      } catch (error) {
+        console.error('Ошибка при загрузке доступных дат:', error);
+      }
+    };
+
+    fetchAvailableDates();
+  }, []);
 
   const days = getMonthDays(currentMonth);
 
@@ -295,7 +322,7 @@ export default function Calendar() {
       <motion.div layout className="grid grid-cols-7 gap-1.5">
         {days.map(date => {
           const key = format(date, 'yyyy-MM-dd');
-          const slots = MOCK_SLOTS[key] ?? [];
+          const slots = availableDates[key] ?? [];
           return (
             <DayCard
               key={key}

@@ -6,6 +6,10 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python start_all.py
     envVars:
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
       - key: BOT_TOKEN
         sync: false
       - key: ADMIN_ID
@@ -14,7 +18,5 @@ services:
         sync: false
       - key: ADMIN_USERNAME
         sync: false
-      - key: DB_PATH
-        value: /etc/secrets/db_path
       - key: MINI_APP_URL
         value: https://liquid-glass-calendar-design.vercel.app

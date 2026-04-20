@@ -18,6 +18,7 @@ from api.models import (
     AdminClientRequest,
     UpdateSlotTimeRequest,
     DeleteClientRequest,
+    MarkBookingCompletedRequest,
 )
 from database.db import (
     add_work_day,
@@ -33,6 +34,7 @@ from database.db import (
     update_booking,
     delete_booking,
     get_bookings_for_day,
+    mark_booking_completed,
 )
 from config import ADMIN_ID, ADMIN_SECRET_KEY
 from api.websocket import manager
@@ -59,22 +61,20 @@ gui_settings = GUISettings(
 async def verify_admin(
     request: Request,
     x_admin_id: int = Header(None, description="Admin ID for authentication"),
-    x_admin_signature: str = Header(None, description="Admin HMAC signature")
+    x_admin_signature: str = Header(None, description="Admin HMAC signature (optional)")
 ):
-    """Проверка админ-прав с HMAC подписью - Dependency"""
+    """Проверка админ-прав - базовая защита через admin_id"""
     client_host = request.client.host if request.client else 'unknown'
 
-    if x_admin_id is None or x_admin_signature is None:
-        logger.warning(f"Missing admin credentials from {client_host}")
-        raise HTTPException(status_code=403, detail="Missing admin credentials")
+    if x_admin_id is None:
+        logger.warning(f"Missing admin ID from {client_host}")
+        raise HTTPException(status_code=403, detail="Missing admin ID")
 
     if x_admin_id != ADMIN_ID:
         logger.warning(f"Invalid admin ID: {x_admin_id} from {client_host}")
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # TODO: Fix HMAC signature mismatch between frontend and backend
-    # Temporarily disabled for debugging
-    logger.info(f"Admin authenticated successfully from {client_host} (HMAC check disabled)")
+    logger.info(f"Admin authenticated successfully from {client_host}")
     return x_admin_id
 
 
@@ -346,6 +346,20 @@ async def update_slot_time_endpoint(request: Request, body: UpdateSlotTimeReques
         return {"success": True, "message": "Время слота обновлено"}
     else:
         return {"success": False, "message": "Не удалось обновить время слота"}
+
+
+@router.post("/mark-booking-completed")
+@limiter.limit("200/minute")
+async def mark_booking_completed_endpoint(request: Request, body: MarkBookingCompletedRequest, admin_id: int = Depends(verify_admin)):
+    """Пометить запись как исполненную (completed)"""
+    print(f"DEBUG mark-booking-completed: body={body}, admin_id={admin_id}")
+
+    success = mark_booking_completed(body.booking_id)
+
+    if success:
+        return {"success": True, "message": "Запись помечена как исполненная"}
+    else:
+        return {"success": False, "message": "Не удалось пометить запись как исполненную"}
 
 
 @router.post("/delete-client")

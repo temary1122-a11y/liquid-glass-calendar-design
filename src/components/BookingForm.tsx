@@ -44,7 +44,32 @@ export default function BookingForm({ date, time, availableSlots, onTimeChange, 
     setIsSubmitting(true);
 
     try {
-      // Используем шаблон из config
+      // 1. Создание записи в базе данных через API
+      const bookingData = {
+        name,
+        phone,
+        date: format(date, 'yyyy-MM-dd'),
+        time,
+        service_id: 'classic',
+      };
+
+      const response = await fetch('/api/booking/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        alert(`Ошибка создания записи: ${result.message}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Создание Telegram URL для личного общения
       const message = MESSAGE_TEMPLATES.CLIENT_BOOKING_FORM({
         name: name,
         phone: phone,
@@ -52,12 +77,14 @@ export default function BookingForm({ date, time, availableSlots, onTimeChange, 
         time: time,
       });
 
-      // Перенаправляем в личные сообщения администратора
-      const adminUsername = CONTACT_INFO.ADMIN_USERNAME.replace('@', ''); // Убираем @ если есть
+      const adminUsername = CONTACT_INFO.ADMIN_USERNAME.replace('@', '');
       const telegramUrl = `https://t.me/${adminUsername}?text=${encodeURIComponent(message)}`;
       window.open(telegramUrl, '_blank');
 
       onClose();
+    } catch (error) {
+      console.error('Ошибка отправки запроса:', error);
+      alert('Ошибка при создании записи. Попробуйте позже.');
     } finally {
       setIsSubmitting(false);
     }
