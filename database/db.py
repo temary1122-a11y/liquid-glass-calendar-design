@@ -474,6 +474,43 @@ def get_all_slots(day_date: str) -> list[sqlite3.Row]:
         )
 
 
+def get_work_days_with_slots() -> list[dict]:
+    """
+    Оптимизированная функция: возвращает все рабочие дни с слотами за один запрос.
+    Заменяет N+1 запросов в get_work_days_endpoint.
+    """
+    with get_conn() as conn:
+        # Один запрос с LEFT JOIN для получения всех данных
+        result = _execute_fetch(conn, """
+            SELECT
+                wd.day_date,
+                wd.is_closed,
+                ts.slot_time,
+                ts.is_booked
+            FROM work_days wd
+            LEFT JOIN time_slots ts ON ts.day_date = wd.day_date
+            ORDER BY wd.day_date, ts.slot_time
+        """)
+
+        # Группируем результаты по дням
+        work_days = {}
+        for row in result:
+            day_date = row["day_date"]
+            if day_date not in work_days:
+                work_days[day_date] = {
+                    "day_date": day_date,
+                    "is_closed": row["is_closed"],
+                    "slots": []
+                }
+            if row["slot_time"]:  # Если есть слот
+                work_days[day_date]["slots"].append({
+                    "time": row["slot_time"],
+                    "is_booked": bool(row["is_booked"])
+                })
+
+        return list(work_days.values())
+
+
 def update_slot_time(old_date: str, old_time: str, new_date: str, new_time: str) -> bool:
     """Обновляет время слота (для редактирования пустого слота без клиента)."""
     try:

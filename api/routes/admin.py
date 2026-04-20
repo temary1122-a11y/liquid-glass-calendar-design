@@ -30,6 +30,7 @@ from database.db import (
     delete_work_day,
     get_all_slots,
     get_all_work_days,
+    get_work_days_with_slots,
     close_day,
     open_day,
     create_booking,
@@ -160,24 +161,16 @@ async def delete_time_slot_endpoint(request: Request, body: DeleteTimeSlotReques
 @router.get("/work-days", response_model=list[WorkDayInfo])
 @limiter.limit("200/minute")
 async def get_work_days_endpoint(request: Request, admin_id: int = Depends(verify_admin)):
-    """Получить все рабочие дни"""
+    """Получить все рабочие дни (оптимизировано - один запрос вместо N+1)"""
 
-    work_days = get_all_work_days()
+    work_days = get_work_days_with_slots()
     result = []
     for day in work_days:
-        slots = get_all_slots(day["day_date"])
-        # Формируем слоты с полной информацией
-        slot_info = []
-        for slot in slots:
-            slot_info.append({
-                'time': slot["slot_time"],
-                'is_booked': bool(slot["is_booked"])
-            })
         result.append(
             WorkDayInfo(
                 date=day["day_date"],
                 is_closed=bool(day["is_closed"]),
-                slots=slot_info,
+                slots=day["slots"],
             )
         )
     return result
