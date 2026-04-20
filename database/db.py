@@ -52,7 +52,28 @@ def get_conn():
                     query = query.replace("?", "%s")
                     # Замена datetime('now') на NOW() для PostgreSQL
                     query = query.replace("datetime('now')", "NOW()")
+                    # Замена INSERT OR IGNORE на INSERT ... ON CONFLICT DO NOTHING для PostgreSQL
+                    if "INSERT OR IGNORE INTO" in query:
+                        query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+                        # Добавляем ON CONFLICT DO NOTHING после VALUES
+                        values_pos = query.find("VALUES")
+                        if values_pos != -1:
+                            query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
                 return self._cursor.execute(query, params if params is not None else ())
+
+            def executemany(self, query, params_list):
+                if USE_POSTGRES and "?" in query:
+                    query = query.replace("?", "%s")
+                    # Замена datetime('now') на NOW() для PostgreSQL
+                    query = query.replace("datetime('now')", "NOW()")
+                    # Замена INSERT OR IGNORE на INSERT ... ON CONFLICT DO NOTHING для PostgreSQL
+                    if "INSERT OR IGNORE INTO" in query:
+                        query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+                        # Добавляем ON CONFLICT DO NOTHING после VALUES
+                        values_pos = query.find("VALUES")
+                        if values_pos != -1:
+                            query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
+                return self._cursor.executemany(query, params_list)
 
             def __getattr__(self, name):
                 return getattr(self._cursor, name)
