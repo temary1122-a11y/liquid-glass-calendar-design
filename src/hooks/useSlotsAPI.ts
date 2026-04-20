@@ -150,9 +150,6 @@ const ADMIN_SECRET_KEY = import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secre
         [date]: [...(prev[date] ?? []), time].sort(),
       }));
 
-      // Refresh from server to confirm data is saved
-      await refreshSlots();
-
       console.log('DEBUG: Slot added successfully', { date, time });
     } catch (err) {
       console.error('Error adding slot:', err);
