@@ -1,6 +1,10 @@
 # ============================================================
-# api/routes/booking.py — Routes для записи
+# api/routes/booking.py — API endpoints для бронирования
 # ============================================================
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Request, HTTPException
 from slowapi import Limiter
@@ -35,25 +39,37 @@ limiter = Limiter(key_func=lambda r: r.client.host if r.client else r.headers.ge
 async def get_available_dates(request: Request):
     """Получить доступные даты и слоты"""
     try:
+        logger.info("DEBUG: Calling get_available_work_days()")
         work_days = get_available_work_days()
+        logger.info(f"DEBUG: work_days = {work_days}")
+        logger.info(f"DEBUG: work_days type = {type(work_days)}, len = {len(work_days)}")
+
         result = []
 
         for day in work_days:
-            slots = get_free_slots(day[1])  # day[1] = day_date
+            logger.info(f"DEBUG: Processing day = {day}, type = {type(day)}")
+            day_date = day[1] if isinstance(day, (tuple, list)) else day
+            logger.info(f"DEBUG: day_date = {day_date}")
+
+            slots = get_free_slots(day_date)
+            logger.info(f"DEBUG: slots for {day_date} = {slots}")
+
             time_slots = [
-                TimeSlot(time=slot[2], available=True)  # slot[2] = slot_time (исправлено)
+                TimeSlot(time=slot[2] if isinstance(slot, (tuple, list)) else slot, available=True)
                 for slot in slots
             ]
             result.append(
                 WorkDay(
-                    date=day[1],  # day_date
+                    date=day_date,
                     slots=time_slots,
-                    is_closed=bool(day[2])  # is_closed
+                    is_closed=bool(day[2] if isinstance(day, (tuple, list)) else day.get('is_closed', False))
                 )
             )
 
+        logger.info(f"DEBUG: result = {result}")
         return result
     except Exception as e:
+        logger.error(f"ERROR in available-dates: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
