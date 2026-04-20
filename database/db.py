@@ -48,7 +48,6 @@ def get_conn():
                 self._cursor = cursor
 
             def execute(self, query, params=None):
-                original_query = query
                 if USE_POSTGRES and "?" in query:
                     query = query.replace("?", "%s")
                     # Замена datetime('now') на NOW() для PostgreSQL
@@ -56,11 +55,6 @@ def get_conn():
                     # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
                     if "INSERT OR IGNORE INTO" in query:
                         query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
-                        logger.info(f"CursorWrapper: INSERT OR IGNORE -> INSERT")
-                if original_query != query:
-                    logger.info(f"CursorWrapper: Query modified for PostgreSQL")
-                    logger.info(f"Original: {original_query[:100]}...")
-                    logger.info(f"Modified: {query[:100]}...")
                 return self._cursor.execute(query, params if params is not None else ())
 
             def executemany(self, query, params_list):
