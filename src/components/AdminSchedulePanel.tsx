@@ -151,6 +151,7 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
     note: ''
   });
   const [pickerTime, setPickerTime] = useState('09:00'); // Local state for picker
+  const [showTimePicker, setShowTimePicker] = useState(false); // Show/hide time picker dialog
   const { vibrate } = useVibration();
 
   // Получаем клиента для конкретного слота
@@ -207,6 +208,28 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
     setEditForm({ name: '', time: '', username: '', userId: '', note: '' });
   };
 
+  // Добавление слота через кнопку "плюс слот"
+  const handleAddSlot = () => {
+    vibrate(VIBRATION_PATTERNS.LIGHT);
+    setShowTimePicker(true);
+  };
+
+  // Подтверждение добавления слота из диалога
+  const handleConfirmAddSlot = () => {
+    if (pickerTime) {
+      onAddSlot(pickerTime);
+      setShowTimePicker(false);
+      setPickerTime('09:00'); // Reset to default
+      vibrate(VIBRATION_PATTERNS.SUCCESS);
+    }
+  };
+
+  // Отмена добавления слота
+  const handleCancelAddSlot = () => {
+    setShowTimePicker(false);
+    setPickerTime('09:00');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -226,10 +249,7 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.92 }}
-          onClick={() => {
-            vibrate(VIBRATION_PATTERNS.LIGHT);
-            setPickerTime('09:00'); // Reset to default time
-          }}
+          onClick={handleAddSlot}
           className="liquid-glass-nav h-9 px-4 rounded-xl flex items-center gap-1.5
             text-[#7c5340] text-xs font-semibold hover:text-[#3d2b1f] transition-colors"
         >
@@ -238,21 +258,50 @@ function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients 
         </motion.button>
       </div>
 
-      {/* ── Time Picker (Native) ── */}
-      <input
-        type="time"
-        value={pickerTime}
-        onChange={(e) => {
-          const newTime = e.target.value;
-          setPickerTime(newTime);
-          if (newTime) {
-            onAddSlot(newTime);
-          }
-        }}
-        className="w-full px-4 py-3 text-lg text-center text-[#3d2b1f] font-semibold bg-[#f5f0e8] border-2 border-[#e8e0d0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 focus:border-[#c4967a]"
-        autoFocus
-        onClick={(e) => e.currentTarget.showPicker?.()}
-      />
+      {/* ── Time Picker Dialog ── */}
+      <AnimatePresence>
+        {showTimePicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={handleCancelAddSlot}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#f5f0e8] rounded-2xl p-6 w-full max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-[#3d2b1f] text-lg font-semibold mb-4 text-center">
+                Выберите время
+              </h3>
+              <input
+                type="time"
+                value={pickerTime}
+                onChange={(e) => setPickerTime(e.target.value)}
+                className="w-full px-4 py-3 text-lg text-center text-[#3d2b1f] font-semibold bg-white border-2 border-[#e8e0d0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 focus:border-[#c4967a] mb-4"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelAddSlot}
+                  className="flex-1 px-4 py-3 bg-[#e8e0d0] text-[#3d2b1f] font-semibold rounded-xl hover:bg-[#d4c8b8] transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleConfirmAddSlot}
+                  className="flex-1 px-4 py-3 bg-[#c4967a] text-white font-semibold rounded-xl hover:bg-[#b0865f] transition-colors"
+                >
+                  Добавить
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Slots list ── */}
       <div className="flex flex-col gap-1.5">
