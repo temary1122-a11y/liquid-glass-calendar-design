@@ -548,79 +548,65 @@ def create_booking(
     Создаёт запись клиента.
     Возвращает booking_id или None если слот уже занят.
     """
-    conn = get_conn().__enter__()  # Получаем connection без context manager
-    is_postgres = USE_POSTGRES
-
-    # Оборачиваем cursor в CursorWrapper для PostgreSQL
-    if is_postgres:
-        cursor = CursorWrapper(conn.cursor(), is_postgres=True)
-    else:
-        cursor = conn
-
-    try:
-        # Проверяем, не занят ли слот
-        cursor.execute(
-            "SELECT is_booked FROM time_slots WHERE day_date=? AND slot_time=?",
-            (day_date, slot_time)
-        )
-        slot = cursor.fetchone()
-
-        if slot is None or slot["is_booked"]:
-            logger.warning(f"Слот {day_date} {slot_time} недоступен для записи")
-            return None
-
-        # Защита от повторных записей: проверяем наличие активной записи у пользователя
-        if user_id != 0:  # user_id=0 для Mini App без Telegram
-            cursor.execute(
-                """SELECT id FROM bookings
-                   WHERE user_id=? AND status != 'completed' AND is_cancelled=0
-                   ORDER BY day_date DESC LIMIT 1""",
-                (user_id,)
+    with get_conn() as conn:
+        try:
+            # Проверяем, не занят ли слот
+            conn.execute(
+                "SELECT is_booked FROM time_slots WHERE day_date=? AND slot_time=?",
+                (day_date, slot_time)
             )
-            existing = cursor.fetchone()
-            if existing:
-                logger.warning(f"Пользователь {user_id} уже имеет активную запись")
+            slot = conn.fetchone()
+
+            if slot is None or slot["is_booked"]:
+                logger.warning(f"Слот {day_date} {slot_time} недоступен для записи")
                 return None
 
-        # INSERT в bookings с RETURNING для PostgreSQL
-        if is_postgres:
-            cursor.execute(
-                """INSERT INTO bookings
-                   (user_id, username, client_name, phone, day_date, slot_time, service_id, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                   RETURNING id""",
-                (user_id, username, client_name, phone, day_date, slot_time, service_id, "confirmed")
+            # Защита от повторных записей: проверяем наличие активной записи у пользователя
+            if user_id != 0:  # user_id=0 для Mini App без Telegram
+                conn.execute(
+                    """SELECT id FROM bookings
+                       WHERE user_id=? AND status != 'completed' AND is_cancelled=0
+                       ORDER BY day_date DESC LIMIT 1""",
+                    (user_id,)
+                )
+                existing = conn.fetchone()
+                if existing:
+                    logger.warning(f"Пользователь {user_id} уже имеет активную запись")
+                    return None
+
+            # INSERT в bookings с RETURNING для PostgreSQL
+            if USE_POSTGRES:
+                conn.execute(
+                    """INSERT INTO bookings
+                       (user_id, username, client_name, phone, day_date, slot_time, service_id, status)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                       RETURNING id""",
+                    (user_id, username, client_name, phone, day_date, slot_time, service_id, "confirmed")
+                )
+                result = conn.fetchone()
+                booking_id = result["id"] if result else None
+            else:
+                # SQLite использует lastrowid
+                conn.execute(
+                    """INSERT INTO bookings
+                       (user_id, username, client_name, phone, day_date, slot_time, service_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (user_id, username, client_name, phone, day_date, slot_time, service_id)
+                )
+                booking_id = conn.lastrowid
+
+            # Помечаем слот как занятый
+            conn.execute(
+                "UPDATE time_slots SET is_booked=1 WHERE day_date=? AND slot_time=?",
+                (day_date, slot_time)
             )
-            result = cursor.fetchone()
-            booking_id = result["id"] if result else None
-        else:
-            # SQLite использует lastrowid
-            cursor.execute(
-                """INSERT INTO bookings
-                   (user_id, username, client_name, phone, day_date, slot_time, service_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (user_id, username, client_name, phone, day_date, slot_time, service_id)
-            )
-            booking_id = cursor.lastrowid
 
-        # Помечаем слот как занятый
-        cursor.execute(
-            "UPDATE time_slots SET is_booked=1 WHERE day_date=? AND slot_time=?",
-            (day_date, slot_time)
-        )
+            logger.info(f"Запись создана: user_id={user_id}, {day_date} {slot_time}, booking_id={booking_id}")
+            return booking_id
 
-        conn.commit()
-        logger.info(f"Запись создана: user_id={user_id}, {day_date} {slot_time}, booking_id={booking_id}")
-        return booking_id
-
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Ошибка создания записи: {e}")
-        return None
-    finally:
-        if is_postgres and hasattr(cursor, 'close'):
-            cursor.close()
-        conn.__exit__(None, None, None)
+        except Exception as e:
+            logger.error(f"Ошибка создания записи: {e}")
+            return None
 
 
 def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
