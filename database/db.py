@@ -53,14 +53,10 @@ def get_conn():
                     query = query.replace("?", "%s")
                     # Замена datetime('now') на NOW() для PostgreSQL
                     query = query.replace("datetime('now')", "NOW()")
-                    # Замена INSERT OR IGNORE на INSERT ... ON CONFLICT DO NOTHING для PostgreSQL
+                    # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
                     if "INSERT OR IGNORE INTO" in query:
                         query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
-                        # Добавляем ON CONFLICT DO NOTHING после VALUES
-                        values_pos = query.find("VALUES")
-                        if values_pos != -1:
-                            query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
-                            logger.info(f"CursorWrapper: INSERT OR IGNORE -> INSERT ... ON CONFLICT DO NOTHING")
+                        logger.info(f"CursorWrapper: INSERT OR IGNORE -> INSERT")
                 if original_query != query:
                     logger.info(f"CursorWrapper: Query modified for PostgreSQL")
                     logger.info(f"Original: {original_query[:100]}...")
@@ -72,13 +68,9 @@ def get_conn():
                     query = query.replace("?", "%s")
                     # Замена datetime('now') на NOW() для PostgreSQL
                     query = query.replace("datetime('now')", "NOW()")
-                    # Замена INSERT OR IGNORE на INSERT ... ON CONFLICT DO NOTHING для PostgreSQL
+                    # Замена INSERT OR IGNORE на INSERT для PostgreSQL (exception handling в коде)
                     if "INSERT OR IGNORE INTO" in query:
                         query = query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
-                        # Добавляем ON CONFLICT DO NOTHING после VALUES
-                        values_pos = query.find("VALUES")
-                        if values_pos != -1:
-                            query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
                 return self._cursor.executemany(query, params_list)
 
             def __getattr__(self, name):
@@ -301,11 +293,12 @@ def add_work_day(day_date: str, time_slots: list[str] | None = None) -> bool:
                 )
             logger.info(f"Рабочий день добавлен: {day_date}")
             return True
-    except sqlite3.IntegrityError:
-        logger.warning(f"Рабочий день {day_date} уже существует")
-        return False
     except Exception as e:
-        logger.error(f"Ошибка добавления рабочего дня {day_date}: {e}")
+        # Universal exception handling for both SQLite and PostgreSQL
+        if "UNIQUE constraint" in str(e) or "duplicate key" in str(e):
+            logger.warning(f"Рабочий день {day_date} уже существует")
+            return False
+        logger.error(f"Error adding work day {day_date}: {e}")
         return False
 
 
@@ -379,11 +372,15 @@ def add_time_slot(day_date: str, slot_time: str) -> bool:
     """Adds slot to work day. Auto-creates work day if needed. True = success."""
     try:
         with get_conn() as conn:
-            # First, ensure work day exists
-            conn.execute(
-                "INSERT OR IGNORE INTO work_days (day_date, is_closed) VALUES (?, 0)",
-                (day_date,)
-            )
+            # First, ensure work day exists (may fail if day already exists)
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO work_days (day_date, is_closed) VALUES (?, 0)",
+                    (day_date,)
+                )
+            except Exception:
+                # Day already exists, that's fine
+                pass
 
             # Then add the slot
             conn.execute(
