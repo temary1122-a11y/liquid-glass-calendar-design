@@ -6,8 +6,8 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    // Используем BASE_URL из env или дефолтное значение
-    this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+    // Используем BASE_URL из env или дефолтное значение (Render URL)
+    this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com';
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {

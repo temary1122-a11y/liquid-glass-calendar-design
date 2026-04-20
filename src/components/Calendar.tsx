@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import BookingForm from './BookingForm';
+import { apiClient } from '../api/client';
 import {
   format,
   startOfMonth,
@@ -240,11 +241,7 @@ export default function Calendar() {
   useEffect(() => {
     const fetchAvailableDates = async () => {
       try {
-        const response = await fetch('/api/booking/available-dates');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+        const data = await apiClient.getAvailableDates();
         const formattedData: Record<string, string[]> = {};
 
         data.forEach((item: any) => {

@@ -37,10 +37,11 @@ else:
 def get_conn():
     """Возвращает соединение с автокоммитом/откатом."""
     if USE_POSTGRES:
-        # PostgreSQL connection (без RealDictCursor чтобы возвращать tuple как SQLite)
+        # PostgreSQL connection с RealDictCursor чтобы возвращать dict как SQLite
+        from psycopg2.extras import RealDictCursor
         conn = psycopg2.connect(DATABASE_URL)
         conn.autocommit = False
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
         # Wrapper для cursor.execute чтобы заменить ? на %s
         class CursorWrapper:
