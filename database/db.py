@@ -219,7 +219,7 @@ def get_available_days() -> list[sqlite3.Row]:
             JOIN time_slots ts ON ts.day_date = wd.day_date
             WHERE wd.is_closed = 0
               AND ts.is_booked = 0
-              AND wd.day_date >= date('now', 'localtime')
+              AND wd.day_date >= CURRENT_DATE
             ORDER BY wd.day_date
         """).fetchall()
 
@@ -240,7 +240,7 @@ def get_available_work_days() -> list[sqlite3.Row]:
             SELECT DISTINCT wd.*
             FROM work_days wd
             JOIN time_slots ts ON ts.day_date = wd.day_date
-            WHERE wd.day_date >= date('now','localtime')
+            WHERE wd.day_date >= CURRENT_DATE
               AND wd.is_closed = 0
               AND ts.is_booked = 0
             ORDER BY wd.day_date
@@ -467,7 +467,7 @@ def get_user_booking(user_id: int) -> Optional[sqlite3.Row]:
             FROM bookings b
             JOIN work_days wd ON wd.day_date = b.day_date
             WHERE b.user_id = ?
-              AND b.day_date >= date('now', 'localtime')
+              AND b.day_date >= CURRENT_DATE
             ORDER BY b.day_date, b.slot_time
             LIMIT 1
         """, (user_id,)).fetchone()
@@ -483,7 +483,7 @@ def cancel_booking_by_user(user_id: int) -> Optional[sqlite3.Row]:
             booking = conn.execute("""
                 SELECT * FROM bookings
                 WHERE user_id = ?
-                  AND day_date >= date('now', 'localtime')
+                  AND day_date >= CURRENT_DATE
                 ORDER BY day_date, slot_time
                 LIMIT 1
             """, (user_id,)).fetchone()
@@ -558,7 +558,7 @@ def get_all_future_bookings() -> list[sqlite3.Row]:
     with get_conn() as conn:
         return conn.execute("""
             SELECT * FROM bookings
-            WHERE day_date >= date('now', 'localtime')
+            WHERE day_date >= CURRENT_DATE
             ORDER BY day_date, slot_time
         """).fetchall()
 
