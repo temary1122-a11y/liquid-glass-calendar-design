@@ -48,6 +48,7 @@ def get_conn():
                 self._cursor = cursor
 
             def execute(self, query, params=None):
+                original_query = query
                 if USE_POSTGRES and "?" in query:
                     query = query.replace("?", "%s")
                     # Замена datetime('now') на NOW() для PostgreSQL
@@ -59,6 +60,11 @@ def get_conn():
                         values_pos = query.find("VALUES")
                         if values_pos != -1:
                             query = query[:values_pos + 6] + " ON CONFLICT DO NOTHING" + query[values_pos + 6:]
+                            logger.info(f"CursorWrapper: INSERT OR IGNORE -> INSERT ... ON CONFLICT DO NOTHING")
+                if original_query != query:
+                    logger.info(f"CursorWrapper: Query modified for PostgreSQL")
+                    logger.info(f"Original: {original_query[:100]}...")
+                    logger.info(f"Modified: {query[:100]}...")
                 return self._cursor.execute(query, params if params is not None else ())
 
             def executemany(self, query, params_list):
@@ -378,7 +384,7 @@ def add_time_slot(day_date: str, slot_time: str) -> bool:
                 "INSERT OR IGNORE INTO work_days (day_date, is_closed) VALUES (?, 0)",
                 (day_date,)
             )
-            
+
             # Then add the slot
             conn.execute(
                 "INSERT INTO time_slots (day_date, slot_time) VALUES (?, ?)",
@@ -386,10 +392,11 @@ def add_time_slot(day_date: str, slot_time: str) -> bool:
             )
             logger.info(f"Slot added: {day_date} {slot_time}")
             return True
-    except sqlite3.IntegrityError:
-        logger.warning(f"Slot {day_date} {slot_time} already exists")
-        return False
     except Exception as e:
+        # Universal exception handling for both SQLite and PostgreSQL
+        if "UNIQUE constraint" in str(e) or "duplicate key" in str(e):
+            logger.warning(f"Slot {day_date} {slot_time} already exists")
+            return False
         logger.error(f"Error adding slot {day_date} {slot_time}: {e}")
         return False
 
