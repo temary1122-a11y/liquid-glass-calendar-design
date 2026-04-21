@@ -260,6 +260,7 @@ class ApiClient {
     time: string;
     username?: string;
     note?: string;
+    status?: string;
   }): Promise<{ success: boolean; message: string }> {
     try {
       const res = await fetch(`${this.baseUrl}/api/admin/update-client`, {

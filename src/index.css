@@ -28,10 +28,10 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background-color: #f0e4d8;
-  background-image: 
-    radial-gradient(ellipse at top right, #f7d5bc 0%, transparent 60%),
-    radial-gradient(ellipse at bottom left, #e8c9b0 0%, transparent 60%),
-    radial-gradient(ellipse at center, #fde8d5 0%, transparent 80%);
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   min-height: 100dvh;
   color: var(--color-warm-brown);
   overscroll-behavior: none;

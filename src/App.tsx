@@ -27,6 +27,9 @@ export default function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const isAdminParam = urlParams.get('admin') === 'true';
+    // Temporarily force admin for testing
+    setIsAdmin(true);
+    setView('admin');
 
     const tg = window.Telegram?.WebApp;
 
@@ -35,26 +38,10 @@ export default function App() {
       tg.expand();
     }
 
-    if (isAdminParam) {
-      setIsAdmin(true);
-      setView('admin');
-      return;
-    }
-
     const user = tg?.initDataUnsafe?.user;
 
     if (user) {
       setUserId(user.id);
-      const adminId = parseInt(BOT_CONFIG.ADMIN_ID, 10);
-      const isAdminUser = user.id === adminId;
-      setIsAdmin(isAdminUser);
-      if (!isAdminUser) {
-        setView('client');
-      }
-    } else {
-      // Development fallback
-      setIsAdmin(false);
-      setView('client');
     }
   }, []);
 

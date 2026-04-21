@@ -85,6 +85,7 @@ class UpdateClientRequest(BaseModel):
     time: str
     username: Optional[str] = None
     note: Optional[str] = None
+    status: Optional[str] = None
 
 
 class DeleteClientRequest(BaseModel):
@@ -345,6 +346,8 @@ async def update_client(
         slot.booking.phone = request.phone
         slot.booking.username = request.username
         slot.booking.note = request.note
+        if request.status:
+            slot.booking.status = request.status
         db.commit()
 
         await ws_manager.broadcast(

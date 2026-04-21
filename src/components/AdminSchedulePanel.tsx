@@ -3,650 +3,418 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { format, isSameMonth, isToday, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isBefore, startOfDay } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Plus, Trash2, User, Phone, Clock,
-  Calendar, ChevronDown, ChevronUp,
-  XCircle, Edit3, Save, X,
-} from 'lucide-react';
+import { useSwipeable } from 'react-swipeable';
 import { apiClient, type AdminWorkDay } from '../api/client';
-import { vibrateMedium, vibrateSuccess, vibrateError, vibrateLight } from '../utils/vibration';
-import ConfirmModal from './ConfirmModal';
+import { vibrateLight } from '../utils/vibration';
+import SelectedDayPanel from './SelectedDayPanel';
 
-const MONTH_NAMES = [
-  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-];
+const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-
-
-interface EditingClient {
-  date: string;
-  time: string;
-  name: string;
-  phone: string;
-  username?: string;
-  note?: string;
-  isNew?: boolean;
+function getMonthDays(month: Date): Date[] {
+  const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
+  const end = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
+  return eachDayOfInterval({ start, end });
 }
 
-interface DeleteTarget {
-  date: string;
-  time: string;
-  clientName?: string;
+// ─── Mapping functions for calendar ──────────────────────────────────
+function getSlotsForDate(date: Date, workDays: Record<string, AdminWorkDay>): string[] {
+  const formattedDate = format(date, 'yyyy-MM-dd');
+  const workDay = workDays[formattedDate];
+  return workDay ? workDay.slots.map(s => s.time) : [];
 }
 
-function formatDateRu(dateStr: string): string {
-  try {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
-  } catch {
-    return dateStr;
-  }
+function getClientsForDate(date: Date, workDays: Record<string, AdminWorkDay>): Array<{time: string, status: string}> {
+  const formattedDate = format(date, 'yyyy-MM-dd');
+  const workDay = workDays[formattedDate];
+  console.log('getClientsForDate date:', formattedDate, 'workDay:', workDay);
+  if (!workDay) return [];
+  const clients = workDay.slots
+    .filter(s => s.is_booked && s.booking)
+    .map(s => ({
+      time: s.time,
+      status: s.booking!.status
+    }));
+  console.log('clients for date:', clients);
+  return clients;
 }
 
-function getStatusLabel(status: string, isCancelled?: boolean): { label: string; className: string } {
-  if (isCancelled) return { label: 'отменена', className: 'badge-cancelled' };
-  switch (status) {
-    case 'confirmed': return { label: 'подтверждена', className: 'badge-confirmed' };
-    case 'pending': return { label: 'ожидает', className: 'badge-pending' };
-    case 'completed': return { label: 'завершена', className: 'badge-completed' };
-    case 'cancelled': return { label: 'отменена', className: 'badge-cancelled' };
-    default: return { label: status || 'ожидает', className: 'badge-pending' };
-  }
+// ─── Nav Button ───────────────────────────────────────────────────────────────
+function NavButton({ onClick, direction }: { onClick: () => void; direction: 'left' | 'right' }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.90 }}
+      onClick={onClick}
+      className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
+        text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
+    >
+      {direction === 'left'
+        ? <ChevronLeft size={18} strokeWidth={2.5} />
+        : <ChevronRight size={18} strokeWidth={2.5} />
+      }
+    </motion.button>
+  );
 }
+
+// ─── Admin DayCard ────────────────────────────────────────────────────────────
+interface AdminDayCardProps {
+  date: Date;
+  slots: string[];
+  isCurrentMonth: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+  bookedClients?: Array<{ time: string; status?: string }>;
+}
+
+function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, bookedClients = [] }: AdminDayCardProps) {
+  const isPast = isBefore(startOfDay(date), startOfDay(new Date()));
+  const isToday_ = isToday(date);
+  const hasSlots = slots.length > 0;
+
+  const handleClick = () => {
+    vibrateLight();
+    onClick();
+  };
+
+  if (!isCurrentMonth) return <div className="min-h-[64px] rounded-3xl" />;
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.94 }}
+      onClick={handleClick}
+      className={`
+        relative rounded-3xl p-2 min-h-[64px] w-full text-left
+        liquid-glass-calendar transition-all duration-200
+        ${isPast ? 'opacity-40' : ''}
+        ${isSelected ? 'ring-2 ring-[#7c5340]/50 bg-white/20' : ''}
+        ${isToday_ && !isSelected ? 'ring-1 ring-[#2e7d5e]/40' : ''}
+      `}
+    >
+      {/* Day number */}
+      <span className={`
+        absolute top-2 left-2 z-20 text-[11px] font-semibold leading-none
+        ${isToday_ ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
+      `}>
+        {format(date, 'd')}
+      </span>
+
+      {/* Slot dots */}
+      {hasSlots && !isPast && (
+        <div className="relative z-20 flex flex-wrap gap-0.5 mt-4">
+          {slots.map((slot) => {
+            const client = bookedClients.find(c => c.time === slot);
+            const isBooked = !!client;
+            const status = client?.status;
+
+            return (
+              <span
+                key={slot}
+                className={`
+                  w-1.5 h-1.5 rounded-full inline-block
+                  ${!isBooked
+                    ? 'bg-[#a07060]/60'
+                    : status === 'pending'
+                      ? 'bg-[#ef4444]'
+                      : 'bg-[#2e7d5e]'
+                  }
+                `}
+              />
+            );
+          })}
+        </div>
+      )}
+    </motion.button>
+  );
+}
+
 
 export default function AdminSchedulePanel() {
-  const today = new Date();
   const [workDays, setWorkDays] = useState<Record<string, AdminWorkDay>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'calendar' | 'clients'>('calendar');
 
-  // Slot management
-  const [newSlotDate, setNewSlotDate] = useState('');
-  const [newSlotTime, setNewSlotTime] = useState('');
-  const [newWorkDay, setNewWorkDay] = useState('');
+  // Calendar navigation state
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // Client editing
-  const [editingClient, setEditingClient] = useState<EditingClient | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Confirm modals
-  const [deleteSlotTarget, setDeleteSlotTarget] = useState<{ date: string; time: string } | null>(null);
-  const [deleteClientTarget, setDeleteClientTarget] = useState<DeleteTarget | null>(null);
-
-  const loadData = useCallback(async (quiet = false) => {
-    if (!quiet) setIsLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const data = await apiClient.getWorkDaysWithBookings();
       setWorkDays(data);
     } catch {
       console.error('Failed to load admin data');
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(() => loadData(true), 30000);
+    const interval = setInterval(() => loadData(), 30000);
     return () => clearInterval(interval);
   }, [loadData]);
 
-  function toggleDay(dateKey: string) {
+  // Swipe handlers for calendar navigation
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: goToNextMonth,
+    onSwipedRight: goToPrevMonth,
+    trackTouch: true,
+    delta: 50,
+  });
+
+  // Calendar navigation functions
+  function goToPrevMonth() {
     vibrateLight();
-    setExpandedDays((prev) => {
-      const next = new Set(prev);
-      if (next.has(dateKey)) next.delete(dateKey);
-      else next.add(dateKey);
-      return next;
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() - 1);
+      return newDate;
     });
   }
 
-  async function handleAddWorkDay() {
-    if (!newWorkDay) return;
-    vibrateMedium();
-    const result = await apiClient.addWorkDay(newWorkDay);
-    if (result.success) {
-      vibrateSuccess();
-      setNewWorkDay('');
-      await loadData(true);
-    } else {
-      vibrateError();
-      alert(result.message || 'Ошибка добавления дня');
-    }
+  function goToNextMonth() {
+    vibrateLight();
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + 1);
+      return newDate;
+    });
   }
 
-  async function handleAddSlot() {
-    if (!newSlotDate || !newSlotTime) return;
-    vibrateMedium();
-    const result = await apiClient.addTimeSlot(newSlotDate, newSlotTime);
-    if (result.success) {
-      vibrateSuccess();
-      setNewSlotTime('');
-      await loadData(true);
-    } else {
-      vibrateError();
-      alert(result.message || 'Ошибка добавления слота');
-    }
+  function selectDate(date: Date) {
+    vibrateLight();
+    setSelectedDate(date);
   }
 
-  async function handleDeleteSlot() {
-    if (!deleteSlotTarget) return;
-    vibrateMedium();
-    const result = await apiClient.deleteTimeSlot(deleteSlotTarget.date, deleteSlotTarget.time);
-    if (result.success) {
-      vibrateSuccess();
-      await loadData(true);
-    } else {
-      vibrateError();
-      alert(result.message || 'Не удалось удалить слот');
-    }
-    setDeleteSlotTarget(null);
-  }
-
-  async function handleDeleteClient() {
-    if (!deleteClientTarget) return;
-    vibrateMedium();
-    const result = await apiClient.deleteClient(deleteClientTarget.date, deleteClientTarget.time);
-    if (result.success) {
-      vibrateSuccess();
-      await loadData(true);
-    } else {
-      vibrateError();
-      alert(result.message || 'Не удалось удалить запись');
-    }
-    setDeleteClientTarget(null);
-  }
-
-  async function handleSaveClient() {
-    if (!editingClient) return;
-    setIsSaving(true);
-    vibrateMedium();
-    try {
-      let result;
-      if (editingClient.isNew) {
-        result = await apiClient.createClient({
-          name: editingClient.name,
-          phone: editingClient.phone,
-          date: editingClient.date,
-          time: editingClient.time,
-          username: editingClient.username,
-          note: editingClient.note,
-        });
-      } else {
-        result = await apiClient.updateClient({
-          name: editingClient.name,
-          phone: editingClient.phone,
-          date: editingClient.date,
-          time: editingClient.time,
-          username: editingClient.username,
-          note: editingClient.note,
-        });
-      }
-
-      if (result.success) {
-        vibrateSuccess();
-        setEditingClient(null);
-        await loadData(true);
-      } else {
-        vibrateError();
-        alert(result.message || 'Ошибка сохранения');
-      }
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  const workDaysList = Object.values(workDays).sort((a, b) =>
-    a.day_date.localeCompare(b.day_date)
-  );
-
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  const totalBookings = Object.values(workDays).reduce(
-    (sum, day) => sum + day.slots.filter((s) => s.is_booked).length,
-    0
-  );
+  // Calculate calendar data
+  const days = getMonthDays(currentMonth);
+  const selectedDateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
 
   return (
     <div className="space-y-4">
-      {/* ── Stats bar ── */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: 'Рабочих дней', value: workDaysList.length },
-          { label: 'Всего слотов', value: Object.values(workDays).reduce((s, d) => s + d.slots.length, 0) },
-          { label: 'Записей', value: totalBookings },
-        ].map((stat) => (
-          <div key={stat.label} className="liquid-glass rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-[#3d2b1f]">{stat.value}</p>
-            <p className="text-[10px] text-[#9e8476] mt-0.5">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Add Work Day ── */}
-      <div className="liquid-glass rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3 flex items-center gap-2">
-          <Calendar size={15} className="text-[#c4967a]" />
-          Добавить рабочий день
-        </h3>
-        <div className="flex gap-2">
-          <input
-            type="date"
-            value={newWorkDay}
-            onChange={(e) => setNewWorkDay(e.target.value)}
-            min={todayKey}
-            className="liquid-glass-input flex-1 px-3 py-2 rounded-xl text-[#3d2b1f] text-sm"
-          />
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={handleAddWorkDay}
-            disabled={!newWorkDay}
-            className="btn-primary px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <Plus size={15} />
-            Добавить
-          </motion.button>
-        </div>
-      </div>
-
-      {/* ── Add Time Slot ── */}
-      <div className="liquid-glass rounded-2xl p-4">
-        <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3 flex items-center gap-2">
-          <Clock size={15} className="text-[#c4967a]" />
-          Добавить слот
-        </h3>
-        <div className="flex gap-2 mb-2">
-          <select
-            value={newSlotDate}
-            onChange={(e) => setNewSlotDate(e.target.value)}
-            className="liquid-glass-input flex-1 px-3 py-2 rounded-xl text-[#3d2b1f] text-sm"
-          >
-            <option value="">Выберите дату</option>
-            {workDaysList.map((day) => (
-              <option key={day.day_date} value={day.day_date}>
-                {formatDateRu(day.day_date)}
-              </option>
-            ))}
-          </select>
-          <input
-            type="time"
-            value={newSlotTime}
-            onChange={(e) => setNewSlotTime(e.target.value)}
-            className="liquid-glass-input px-3 py-2 rounded-xl text-[#3d2b1f] text-sm w-28"
-          />
-        </div>
+      {/* ── Tab Switcher ── */}
+      <div className="liquid-glass rounded-2xl p-1.5 flex gap-1.5">
         <motion.button
           whileTap={{ scale: 0.97 }}
-          onClick={handleAddSlot}
-          disabled={!newSlotDate || !newSlotTime}
-          className="w-full btn-primary py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+          onClick={() => setActiveTab('calendar')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            activeTab === 'calendar'
+              ? 'btn-primary'
+              : 'liquid-glass-nav text-[#7c5340]'
+          }`}
         >
-          <Plus size={15} />
-          Добавить слот
+          Календарь
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setActiveTab('clients')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            activeTab === 'clients'
+              ? 'btn-primary'
+              : 'liquid-glass-nav text-[#7c5340]'
+          }`}
+        >
+          Клиенты
         </motion.button>
       </div>
 
-      {/* ── Work Days List ── */}
-      <div className="liquid-glass rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-[#3d2b1f] flex items-center gap-2">
-            <Calendar size={15} className="text-[#c4967a]" />
-            Расписание
-          </h3>
-          <button
-            onClick={() => loadData(true)}
-            className="text-xs text-[#9e8476] px-2 py-1 rounded-lg liquid-glass-nav"
+      {/* ── Calendar Tab ── */}
+      {activeTab === 'calendar' && (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="calendar"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
           >
-            Обновить
-          </button>
+      {/* ── Calendar Grid ── */}
+      <div className="liquid-glass-calendar p-3" {...swipeHandlers}>
+        {/* Month navigation */}
+        <div className="flex items-center justify-between mb-3">
+          <NavButton direction="left" onClick={goToPrevMonth} />
+          <motion.span
+            key={format(currentMonth, 'yyyy-MM')}
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-[#3d2b1f] font-semibold text-sm capitalize"
+          >
+            {format(currentMonth, 'LLLL yyyy', { locale: ru })}
+          </motion.span>
+          <NavButton direction="right" onClick={goToNextMonth} />
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-[#c4967a]/30 border-t-[#c4967a] rounded-full spinner" />
-          </div>
-        ) : workDaysList.length === 0 ? (
-          <p className="text-sm text-[#9e8476] text-center py-6">
-            Нет рабочих дней. Добавьте первый рабочий день выше.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {workDaysList.map((day) => {
-              const isExpanded = expandedDays.has(day.day_date);
-              const bookedCount = day.slots.filter((s) => s.is_booked).length;
-              const totalSlots = day.slots.length;
+        {/* Days of week */}
+        <div className="grid grid-cols-7 mb-1.5">
+          {DAYS_HEADER.map((d) => (
+            <div key={d} className="flex items-center justify-center">
+              <span className="text-[10px] font-semibold text-[#9e8476] uppercase tracking-widest">
+                {d}
+              </span>
+            </div>
+          ))}
+        </div>
 
-              return (
-                <div key={day.day_date} className="liquid-glass-calendar rounded-xl overflow-hidden">
-                  {/* Day header */}
-                  <button
-                    onClick={() => toggleDay(day.day_date)}
-                    className="w-full p-3 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-[#3d2b1f]">
-                          {formatDateRu(day.day_date)}
-                        </p>
-                        <p className="text-[10px] text-[#9e8476]">
-                          {bookedCount}/{totalSlots} записей
-                        </p>
-                      </div>
-                    </div>
+        {/* Days grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((date) => {
+            const key = format(date, 'yyyy-MM-dd');
+            const slots = getSlotsForDate(date, workDays);
+            const clientsForDate = getClientsForDate(date, workDays);
 
-                    <div className="flex items-center gap-2">
-                      {bookedCount > 0 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full badge-confirmed font-medium">
-                          {bookedCount} чел.
-                        </span>
-                      )}
-                      {isExpanded ? (
-                        <ChevronUp size={16} className="text-[#9e8476]" />
-                      ) : (
-                        <ChevronDown size={16} className="text-[#9e8476]" />
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Day detail */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        key={`detail-${day.day_date}`}
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-3 pb-3 border-t border-white/30 pt-2 space-y-2">
-                          {day.slots.length === 0 ? (
-                            <p className="text-xs text-[#9e8476] text-center py-2">
-                              Нет слотов. Добавьте выше.
-                            </p>
-                          ) : (
-                            day.slots.map((slot) => {
-                              const badge = slot.booking
-                                ? getStatusLabel(slot.booking.status)
-                                : null;
-
-                              return (
-                                <div
-                                  key={slot.time}
-                                  className={`rounded-xl p-2.5 ${
-                                    slot.is_booked
-                                      ? 'bg-white/40 border border-[#c4967a]/20'
-                                      : 'bg-white/20'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <Clock size={12} className="text-[#c4967a]" />
-                                      <span className="text-sm font-semibold text-[#3d2b1f]">
-                                        {slot.time}
-                                      </span>
-                                      {badge && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge.className}`}>
-                                          {badge.label}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center gap-1.5">
-                                      {slot.is_booked && slot.booking && (
-                                        <button
-                                          onClick={() => {
-                                            vibrateLight();
-                                            setEditingClient({
-                                              date: day.day_date,
-                                              time: slot.time,
-                                              name: slot.booking!.client_name,
-                                              phone: slot.booking!.phone,
-                                              username: slot.booking!.username,
-                                              note: slot.booking!.note,
-                                            });
-                                          }}
-                                          className="w-7 h-7 flex items-center justify-center rounded-lg
-                                            bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors"
-                                        >
-                                          <Edit3 size={13} />
-                                        </button>
-                                      )}
-
-                                      {!slot.is_booked && (
-                                        <button
-                                          onClick={() => {
-                                            vibrateLight();
-                                            setEditingClient({
-                                              date: day.day_date,
-                                              time: slot.time,
-                                              name: '',
-                                              phone: '',
-                                              isNew: true,
-                                            });
-                                          }}
-                                          className="w-7 h-7 flex items-center justify-center rounded-lg
-                                            bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
-                                        >
-                                          <User size={13} />
-                                        </button>
-                                      )}
-
-                                      <button
-                                        onClick={() => setDeleteSlotTarget({ date: day.day_date, time: slot.time })}
-                                        className="w-7 h-7 flex items-center justify-center rounded-lg
-                                          bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
-                                      >
-                                        <Trash2 size={13} />
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Client info */}
-                                  {slot.booking && (
-                                    <div className="mt-2 pt-2 border-t border-white/30">
-                                      <div className="flex items-center gap-1.5 mb-1">
-                                        <User size={11} className="text-[#9e8476]" />
-                                        <span className="text-xs font-medium text-[#3d2b1f]">
-                                          {slot.booking.client_name}
-                                        </span>
-                                        {slot.booking.username && (
-                                          <span className="text-[10px] text-[#9e8476]">
-                                            @{slot.booking.username}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {slot.booking.phone && (
-                                        <div className="flex items-center gap-1.5">
-                                          <Phone size={11} className="text-[#9e8476]" />
-                                          <span className="text-xs text-[#7c5340]">
-                                            {slot.booking.phone}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {slot.booking.note && (
-                                        <p className="text-[10px] text-[#9e8476] mt-1 italic">
-                                          {slot.booking.note}
-                                        </p>
-                                      )}
-
-                                      {/* Delete client button */}
-                                      <button
-                                        onClick={() =>
-                                          setDeleteClientTarget({
-                                            date: day.day_date,
-                                            time: slot.time,
-                                            clientName: slot.booking!.client_name,
-                                          })
-                                        }
-                                        className="mt-2 flex items-center gap-1 text-[10px] text-red-400
-                                          hover:text-red-600 transition-colors"
-                                      >
-                                        <XCircle size={11} />
-                                        Удалить запись
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
-        )}
+            return (
+              <AdminDayCard
+                key={key}
+                date={date}
+                slots={slots}
+                isCurrentMonth={isSameMonth(date, currentMonth)}
+                isSelected={selectedDateKey === key}
+                onClick={() => selectDate(date)}
+                bookedClients={clientsForDate}
+              />
+            );
+          })}
+        </div>
       </div>
 
-      {/* ── Edit Client Modal ── */}
+      {/* ── Selected Day Panel ── */}
       <AnimatePresence>
-        {editingClient && (
-          <motion.div
-            key="edit-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center p-4 overlay-backdrop"
-            onClick={() => setEditingClient(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 60 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="liquid-glass rounded-3xl p-5 w-full max-w-sm"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-[#3d2b1f]">
-                  {editingClient.isNew ? 'Добавить клиента' : 'Редактировать запись'}
-                </h3>
-                <button
-                  onClick={() => setEditingClient(null)}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl liquid-glass-nav text-[#9e8476]"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-[#9e8476] mb-1 block">Слот</label>
-                  <p className="text-sm font-medium text-[#3d2b1f]">
-                    {formatDateRu(editingClient.date)} в {editingClient.time}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs text-[#9e8476] mb-1.5 block">Имя клиента *</label>
-                  <input
-                    type="text"
-                    value={editingClient.name}
-                    onChange={(e) =>
-                      setEditingClient((prev) => prev ? { ...prev, name: e.target.value } : null)
-                    }
-                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm"
-                    placeholder="Имя"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-[#9e8476] mb-1.5 block">Телефон</label>
-                  <input
-                    type="tel"
-                    value={editingClient.phone}
-                    onChange={(e) =>
-                      setEditingClient((prev) => prev ? { ...prev, phone: e.target.value } : null)
-                    }
-                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm"
-                    placeholder="+7 978 423-74-53"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-[#9e8476] mb-1.5 block">Username Telegram</label>
-                  <input
-                    type="text"
-                    value={editingClient.username || ''}
-                    onChange={(e) =>
-                      setEditingClient((prev) => prev ? { ...prev, username: e.target.value } : null)
-                    }
-                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm"
-                    placeholder="@username"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs text-[#9e8476] mb-1.5 block">Заметка</label>
-                  <textarea
-                    value={editingClient.note || ''}
-                    onChange={(e) =>
-                      setEditingClient((prev) => prev ? { ...prev, note: e.target.value } : null)
-                    }
-                    rows={2}
-                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm resize-none"
-                    placeholder="Доп. информация..."
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => setEditingClient(null)}
-                    className="flex-1 py-2.5 rounded-xl liquid-glass-nav text-[#7c5340] text-sm font-medium"
-                  >
-                    Отмена
-                  </button>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleSaveClient}
-                    disabled={isSaving || !editingClient.name.trim()}
-                    className="flex-1 py-2.5 rounded-xl btn-primary text-sm font-medium
-                      disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isSaving ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full spinner" />
-                    ) : (
-                      <>
-                        <Save size={14} />
-                        Сохранить
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+        {selectedDate && (
+          <SelectedDayPanel
+            date={selectedDate}
+            workDay={workDays[format(selectedDate, 'yyyy-MM-dd')] || null}
+            onAddSlot={async (time) => {
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              return await apiClient.addTimeSlot(dateStr, time);
+            }}
+            onCreateWorkDay={async (dateStr) => {
+              return await apiClient.addWorkDay(dateStr);
+            }}
+            onDeleteSlot={async (time) => {
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              return await apiClient.deleteTimeSlot(dateStr, time);
+            }}
+            onUpdateClient={async (data) => {
+              return await apiClient.updateClient(data);
+            }}
+            onDeleteClient={async (time) => {
+              const dateStr = format(selectedDate, 'yyyy-MM-dd');
+              return await apiClient.deleteClient(dateStr, time);
+            }}
+            onRefresh={() => loadData()}
+          />
         )}
       </AnimatePresence>
+          </motion.div>
+        </AnimatePresence>
+      )}
 
-      {/* ── Confirm Modals ── */}
-      <ConfirmModal
-        isOpen={!!deleteSlotTarget}
-        title="Удалить слот?"
-        message={`Вы уверены, что хотите удалить слот ${deleteSlotTarget?.time}?`}
-        warning={deleteSlotTarget ? 'Если слот занят, запись также будет удалена' : undefined}
-        confirmText="Удалить"
-        onConfirm={handleDeleteSlot}
-        onCancel={() => setDeleteSlotTarget(null)}
-        danger
-      />
+      {/* ── Clients Tab ── */}
+      {activeTab === 'clients' && (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="clients"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {/* Stats bar */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Рабочих дней', value: Object.keys(workDays).length },
+                { label: 'Всего слотов', value: Object.values(workDays).reduce((s, d) => s + d.slots.length, 0) },
+                { label: 'Записей', value: Object.values(workDays).reduce((s, d) => s + d.slots.filter((sl) => sl.is_booked && sl.booking?.status === 'pending').length, 0) },
+              ].map((stat) => (
+                <div key={stat.label} className="liquid-glass rounded-xl p-3 text-center">
+                  <p className="text-xl font-bold text-[#3d2b1f]">{stat.value}</p>
+                  <p className="text-[10px] text-[#9e8476] mt-0.5">{stat.label}</p>
+                </div>
+              ))}
+            </div>
 
-      <ConfirmModal
-        isOpen={!!deleteClientTarget}
-        title="Удалить запись?"
-        message={`Удалить запись клиента ${deleteClientTarget?.clientName || ''}?`}
-        warning="Слот снова станет доступен для записи"
-        confirmText="Удалить"
-        onConfirm={handleDeleteClient}
-        onCancel={() => setDeleteClientTarget(null)}
-        danger
-      />
+            {/* Bookings history */}
+            <div className="liquid-glass rounded-2xl p-4">
+              <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3">История записей</h3>
+              <p className="text-xs text-[#9e8476]">Скоро будет добавлено...</p>
+            </div>
+
+            {/* Pending confirmations */}
+            <div className="liquid-glass rounded-2xl p-4">
+              <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3">Требующие подтверждения</h3>
+              {Object.values(workDays).flatMap(day =>
+                day.slots.filter(s => s.is_booked && s.booking && s.booking.status === 'pending')
+                  .map(s => ({
+                    date: day.day_date,
+                    time: s.time,
+                    client: s.booking!
+                  }))
+              ).length === 0 ? (
+                <p className="text-xs text-[#9e8476]">Нет записей требующих подтверждения</p>
+              ) : (
+                <div className="space-y-2">
+                  {Object.values(workDays).flatMap(day =>
+                    day.slots.filter(s => s.is_booked && s.booking && s.booking.status === 'pending')
+                      .map(s => ({
+                        date: day.day_date,
+                        time: s.time,
+                        client: s.booking!
+                      }))
+                  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((booking) => (
+                    <div key={`${booking.date}-${booking.time}`} className="flex items-center justify-between p-3 bg-white/30 rounded-xl">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-[#3d2b1f]">{booking.client.client_name}</p>
+                        <p className="text-xs text-[#9e8476]">{booking.date} в {booking.time}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onMouseDown={() => console.log('Confirm button onMouseDown')}
+                          onClick={async (e) => {
+                            console.log('Confirm button onClick triggered');
+                            e.stopPropagation();
+                            console.log('Confirm button clicked for:', booking);
+                            const result = await apiClient.updateClient({
+                              name: booking.client.client_name,
+                              phone: booking.client.phone,
+                              date: booking.date,
+                              time: booking.time,
+                              username: booking.client.username,
+                              note: booking.client.note,
+                              status: 'confirmed'
+                            });
+                            console.log('Confirm result:', result);
+                            if (result.success) {
+                              loadData();
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#2e7d5e] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                        >
+                          Подтвердить
+                        </button>
+                        <button
+                          onClick={async () => {
+                            console.log('Reject button clicked for:', booking);
+                            const result = await apiClient.deleteClient(booking.date, booking.time);
+                            console.log('Reject result:', result);
+                            if (result.success) {
+                              loadData();
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#ef4444] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                        >
+                          Отклонить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      )}
     </div>
   );
 }
