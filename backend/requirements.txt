@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+aiogram
+sqlalchemy
+aiosqlite
+python-dotenv
+slowapi
+apscheduler
+pydantic
+pydantic-settings
+websockets

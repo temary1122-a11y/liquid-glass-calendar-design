@@ -1,92 +1,62 @@
 // ============================================================
-// src/config.ts — Корневой файл конфигурации
-// ============================================================
-// Основной файл для быстрой настройки всех параметров приложения:
-// - Шаблоны сообщений
-// - Контактная информация
-// - Ссылки на соцсети и посты
-// - Настройки интерфейса
+// src/config.ts — Конфигурация приложения
 // ============================================================
 
-// ── Шаблоны сообщений ──────────────────────────────────────────
-export const MESSAGE_TEMPLATES = {
-  // Подтверждение записи клиенту
-  ADMIN_CONFIRMATION: (data: { date: string; time: string }) =>
-    `Записала 💌
-📆: ${data.date}
-🟣: ${data.time}
-📎Адрес: Тихий переулок, 4
-🤩3 этаж, первая дверь справа 🤩`,
+export const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  'https://liquid-glass-calendar-design.onrender.com';
 
-  // Форма для заполнения данных клиента при записи
-  CLIENT_BOOKING_FORM: (data: { name: string; phone: string; date: string; time: string }) =>
-    `📋 <b>Новая запись</b>
+export const WS_URL =
+  import.meta.env.VITE_WS_URL ||
+  'wss://liquid-glass-calendar-design.onrender.com/ws';
 
-👤 <b>Имя:</b> ${data.name}
-📞 <b>Телефон:</b> ${data.phone}
-📅 <b>Дата:</b> ${data.date}
-🕐 <b>Время:</b> ${data.time}
-
-Подтвердить запись?`,
-
-  // Уведомление об отмене записи
-  BOOKING_CANCELLED: (data: { name: string; date: string; time: string }) =>
-    `❌ <b>Запись отменена</b>
-
-👤 ${data.name}
-📅 ${data.date} в ${data.time}
-
-Будем рады видеть вас снова!`,
-
-  // Напоминание о записи
-  BOOKING_REMINDER: (data: { name: string; date: string; time: string; address: string }) =>
-    `🔔 <b>Напоминание о записи</b>
-
-Здравствуйте, ${data.name}!
-
-Напоминаем, что ваша запись завтра:
-📅 ${data.date}
-🕐 ${data.time}
-
-Адрес: ${data.address}
-
-До встречи!`,
+export const BOT_CONFIG = {
+  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '1834686956',
+  BOT_TOKEN: '8646567713:AAGaYReANb-Ua4NSoHIOlk06GKKExL-DS6M',
+  BOT_USERNAME: import.meta.env.VITE_BOT_USERNAME || 'YourLashesBot',
 };
 
-// ── Контактная информация ───────────────────────────────────────
+export const ADMIN_SECRET_KEY =
+  import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secret';
+
 export const CONTACT_INFO = {
-  ADMIN_USERNAME: import.meta.env.VITE_ADMIN_USERNAME || '@SotkaLashes',
+  ADMIN_USERNAME: '@SotkaLashes',
+  ADDRESS: 'Тихий переулок, 4',
+  PHONE: '+7 978 423-74-53',
 };
 
-// ── Ссылки на соцсети и посты ─────────────────────────────────
 export const SOCIAL_LINKS = {
-  // Ссылка на пост с прайсами в группе
-  PRICES_POST_LINK: import.meta.env.VITE_PRICES_POST_LINK || 'https://t.me/lashessoto4ka/285',
-
-  // Ссылка на Instagram
-  INSTAGRAM_LINK: import.meta.env.VITE_INSTAGRAM_LINK || 'https://www.instagram.com/your_lashes_simf?igsh=MTFvaHdscnIzbWF0Mw%3D%3D&utm_source=qr',
-
-  // Ссылка на портфолио
+  PRICES_POST_LINK: 'https://t.me/lashessoto4ka/285',
+  INSTAGRAM_LINK:
+    'https://www.instagram.com/your_lashes_simf?igsh=MTFvaHdscnIzbWF0Mw%3D%3D&utm_source=qr',
   PORTFOLIO_LINK: 'https://ru.pinterest.com/crystalwithluv/_created/',
 };
 
-// ── Настройки интерфейса ───────────────────────────────────────
-export const UI_CONFIG = {
-  VISIBLE_SLOTS: 3,
-  MAX_VISIBLE_DAYS: 30,
+export const MESSAGE_TEMPLATES = {
+  CLIENT_BOOKING_FORM: ({
+    name,
+    phone,
+    date,
+    time,
+  }: {
+    name: string;
+    phone?: string;
+    date: string;
+    time: string;
+  }): string => {
+    let message = `здравствуйте! Запишите, пожалуйста\n👤 Имя: ${name}`;
+    if (phone && phone.trim()) {
+      message += `\n📞 Телефон: ${phone}`;
+    }
+    message += `\n📅 Дата: ${date}\n🕐 Время: ${time}`;
+    return message;
+  },
 };
 
-// ── Backend API URL ─────────────────────────────────────────────
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com';
-
-// ── Токен и ID администратора (для интеграции с ботом) ──────────
-export const BOT_CONFIG = {
-  // Telegram Bot Token (получить у @BotFather)
-  BOT_TOKEN: import.meta.env.VITE_BOT_TOKEN || '',
-
-  // ID администратора (получить у @userinfobot)
-  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '',
-
-  // Секретный ключ для HMAC аутентификации (генерируйте случайную строку)
-  ADMIN_SECRET_KEY: import.meta.env.VITE_ADMIN_SECRET_KEY || '',
-};
+export const SERVICES = [
+  { id: 'classic', name: 'Классические ресницы', price: 2000 },
+  { id: 'volume', name: 'Объемные ресницы', price: 3000 },
+  { id: '2d', name: '2D эффект', price: 3500 },
+  { id: '3d', name: '3D эффект', price: 4000 },
+  { id: 'removal', name: 'Снятие ресниц', price: 500 },
+];

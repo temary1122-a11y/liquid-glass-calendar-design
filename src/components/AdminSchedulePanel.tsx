@@ -1,815 +1,652 @@
-import { useState, useCallback } from 'react';
+// ============================================================
+// src/components/AdminSchedulePanel.tsx — Панель управления для мастера
+// ============================================================
+
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameMonth,
-  isToday,
-  isBefore,
-  startOfDay,
-  parseISO,
-} from 'date-fns';
-import { ru } from 'date-fns/locale';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Users,
-  Clock,
-  Plus,
-  Trash2,
+  Plus, Trash2, User, Phone, Clock,
+  Calendar, ChevronDown, ChevronUp,
+  XCircle, Edit3, Save, X,
 } from 'lucide-react';
-import { useSwipeable } from 'react-swipeable';
-import { MOCK_CLIENTS } from '../mockData';
-import { useVibration, VIBRATION_PATTERNS } from '../hooks/useVibration';
-import { useSlotsAPI } from '../hooks/useSlotsAPI';
-import { useClientsAPI } from '../hooks/useClientsAPI';
+import { apiClient, type AdminWorkDay } from '../api/client';
+import { vibrateMedium, vibrateSuccess, vibrateError, vibrateLight } from '../utils/vibration';
+import ConfirmModal from './ConfirmModal';
 
-const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const MONTH_NAMES = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getMonthDays(month: Date): Date[] {
-  const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-  const end   = endOfWeek(endOfMonth(month),   { weekStartsOn: 1 });
-  return eachDayOfInterval({ start, end });
+
+
+interface EditingClient {
+  date: string;
+  time: string;
+  name: string;
+  phone: string;
+  username?: string;
+  note?: string;
+  isNew?: boolean;
 }
 
-// ─── Nav button ───────────────────────────────────────────────────────────────
-function NavButton({ onClick, direction }: { onClick: () => void; direction: 'left' | 'right' }) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.90 }}
-      onClick={onClick}
-      className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
-        text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
-    >
-      {direction === 'left'
-        ? <ChevronLeft size={18} strokeWidth={2.5} />
-        : <ChevronRight size={18} strokeWidth={2.5} />
-      }
-    </motion.button>
-  );
+interface DeleteTarget {
+  date: string;
+  time: string;
+  clientName?: string;
 }
 
-// ─── Admin DayCard ────────────────────────────────────────────────────────────
-interface AdminDayCardProps {
-  date: Date;
-  slots: string[];
-  isCurrentMonth: boolean;
-  isSelected: boolean;
-  onClick: () => void;
-  bookedClients?: Array<{ time: string; status?: 'pending' | 'confirmed' }>; // Клиенты с информацией о статусах
+function formatDateRu(dateStr: string): string {
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
+  } catch {
+    return dateStr;
+  }
 }
 
-function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, bookedClients = [] }: AdminDayCardProps) {
-  const isPast     = isBefore(startOfDay(date), startOfDay(new Date()));
-  const isToday_   = isToday(date);
-  const hasSlots   = slots.length > 0;
-  const { vibrate } = useVibration();
-
-  const handleClick = () => {
-    vibrate(VIBRATION_PATTERNS.TAP);
-    onClick();
-  };
-
-  if (!isCurrentMonth) return <div className="min-h-[64px] rounded-3xl" />;
-
-  return (
-    <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.94 }}
-      onClick={handleClick}
-      className={`
-        relative rounded-3xl p-2 min-h-[64px] w-full text-left
-        liquid-glass-calendar transition-all duration-200
-        ${isPast ? 'opacity-40' : ''}
-        ${isSelected ? 'ring-2 ring-[#7c5340]/50 bg-white/20' : ''}
-        ${isToday_ && !isSelected ? 'ring-1 ring-[#2e7d5e]/40' : ''}
-      `}
-    >
-      {/* Glass highlight */}
-      <div className="glass-highlight absolute inset-x-0 top-0 h-[45%] rounded-t-3xl pointer-events-none z-10" />
-
-      {/* Day number - фиксированная позиция наверху */}
-      <span className={`
-        absolute top-2 left-2 z-20 text-[11px] font-semibold leading-none
-        ${isToday_ ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
-      `}>
-        {format(date, 'd')}
-      </span>
-
-      {/* Slot count badge - показываем все точки без "+N" */}
-      {hasSlots && !isPast && (
-        <div className="relative z-20 flex flex-wrap gap-0.5 mt-4">
-          {slots.map((slot) => {
-            const client = bookedClients.find(c => c.time === slot);
-            const isBooked = !!client;
-            const status = client?.status;
-
-            return (
-              <span
-                key={slot}
-                className={`
-                  w-1.5 h-1.5 rounded-full inline-block
-                  ${!isBooked
-                    ? 'bg-[#a07060]/60' // Коричневый для свободных
-                    : status === 'pending'
-                      ? 'bg-[#ef4444]' // Красный для ожидающих
-                      : 'bg-[#2e7d5e]' // Зелёный для подтверждённых
-                  }
-                `}
-              />
-            );
-          })}
-        </div>
-      )}
-    </motion.button>
-  );
+function getStatusLabel(status: string, isCancelled?: boolean): { label: string; className: string } {
+  if (isCancelled) return { label: 'отменена', className: 'badge-cancelled' };
+  switch (status) {
+    case 'confirmed': return { label: 'подтверждена', className: 'badge-confirmed' };
+    case 'pending': return { label: 'ожидает', className: 'badge-pending' };
+    case 'completed': return { label: 'завершена', className: 'badge-completed' };
+    case 'cancelled': return { label: 'отменена', className: 'badge-cancelled' };
+    default: return { label: status || 'ожидает', className: 'badge-pending' };
+  }
 }
 
-// ─── SelectedDayPanel ─────────────────────────────────────────────────────────
-interface SelectedDayPanelProps {
-  date: Date;
-  slots: string[];
-  onAddSlot: (time: string) => void;
-  onRemoveSlot: (time: string) => void;
-  bookedClients?: Array<{ name: string; time: string; userId?: string; username?: string; note?: string; status?: 'pending' | 'confirmed' }>;
-  onUpdateClient?: (oldTime: string, newClient: { name: string; time: string; userId?: string; username?: string; note?: string }, isNewClient: boolean) => void;
-}
+export default function AdminSchedulePanel() {
+  const today = new Date();
+  const [workDays, setWorkDays] = useState<Record<string, AdminWorkDay>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
-function SelectedDayPanel({ date, slots, onAddSlot, onRemoveSlot, bookedClients = [], onUpdateClient }: SelectedDayPanelProps) {
-  const [editingSlot, setEditingSlot] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({
-    name: '',
-    time: '',
-    username: '',
-    userId: '',
-    note: ''
-  });
-  const [pickerTime, setPickerTime] = useState('09:00'); // Local state for picker
-  const [showTimePicker, setShowTimePicker] = useState(false); // Show/hide time picker dialog
-  const { vibrate } = useVibration();
+  // Slot management
+  const [newSlotDate, setNewSlotDate] = useState('');
+  const [newSlotTime, setNewSlotTime] = useState('');
+  const [newWorkDay, setNewWorkDay] = useState('');
 
-  // Получаем клиента для конкретного слота
-  const getClientForSlot = (time: string) => {
-    return bookedClients.find(client => client.time === time);
-  };
+  // Client editing
+  const [editingClient, setEditingClient] = useState<EditingClient | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Открытие редактирования
-  const handleEdit = (time: string) => {
-    const client = getClientForSlot(time);
-    if (client) {
-      // Редактирование существующего клиента
-      setEditForm({
-        name: client.name,
-        time: client.time,
-        username: client.username || '',
-        userId: client.userId || '',
-        note: client.note || ''
-      });
+  // Confirm modals
+  const [deleteSlotTarget, setDeleteSlotTarget] = useState<{ date: string; time: string } | null>(null);
+  const [deleteClientTarget, setDeleteClientTarget] = useState<DeleteTarget | null>(null);
+
+  const loadData = useCallback(async (quiet = false) => {
+    if (!quiet) setIsLoading(true);
+    try {
+      const data = await apiClient.getWorkDaysWithBookings();
+      setWorkDays(data);
+    } catch {
+      console.error('Failed to load admin data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(() => loadData(true), 30000);
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  function toggleDay(dateKey: string) {
+    vibrateLight();
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dateKey)) next.delete(dateKey);
+      else next.add(dateKey);
+      return next;
+    });
+  }
+
+  async function handleAddWorkDay() {
+    if (!newWorkDay) return;
+    vibrateMedium();
+    const result = await apiClient.addWorkDay(newWorkDay);
+    if (result.success) {
+      vibrateSuccess();
+      setNewWorkDay('');
+      await loadData(true);
     } else {
-      // Создание нового клиента для пустого слота
-      setEditForm({
-        name: '',
-        time: time,
-        username: '',
-        userId: '',
-        note: ''
-      });
+      vibrateError();
+      alert(result.message || 'Ошибка добавления дня');
     }
-    setEditingSlot(time);
-  };
+  }
 
-  // Сохранение изменений
-  const handleSave = () => {
-    if (editingSlot && onUpdateClient) {
-      const existingClient = getClientForSlot(editingSlot);
-      const isNewClient = !existingClient;
-
-      onUpdateClient(editingSlot, {
-        name: editForm.name,
-        time: editForm.time,
-        username: editForm.username || undefined,
-        userId: editForm.userId || undefined,
-        note: editForm.note || undefined
-      }, isNewClient);
-      vibrate(VIBRATION_PATTERNS.SUCCESS);
+  async function handleAddSlot() {
+    if (!newSlotDate || !newSlotTime) return;
+    vibrateMedium();
+    const result = await apiClient.addTimeSlot(newSlotDate, newSlotTime);
+    if (result.success) {
+      vibrateSuccess();
+      setNewSlotTime('');
+      await loadData(true);
+    } else {
+      vibrateError();
+      alert(result.message || 'Ошибка добавления слота');
     }
-    setEditingSlot(null);
-  };
+  }
 
-  // Отмена редактирования
-  const handleCancel = () => {
-    setEditingSlot(null);
-    setEditForm({ name: '', time: '', username: '', userId: '', note: '' });
-  };
-
-  // Добавление слота через кнопку "плюс слот"
-  const handleAddSlot = () => {
-    vibrate(VIBRATION_PATTERNS.LIGHT);
-    setShowTimePicker(true);
-  };
-
-  // Подтверждение добавления слота из диалога
-  const handleConfirmAddSlot = () => {
-    if (pickerTime) {
-      onAddSlot(pickerTime);
-      setShowTimePicker(false);
-      setPickerTime('09:00'); // Reset to default
-      vibrate(VIBRATION_PATTERNS.SUCCESS);
+  async function handleDeleteSlot() {
+    if (!deleteSlotTarget) return;
+    vibrateMedium();
+    const result = await apiClient.deleteTimeSlot(deleteSlotTarget.date, deleteSlotTarget.time);
+    if (result.success) {
+      vibrateSuccess();
+      await loadData(true);
+    } else {
+      vibrateError();
+      alert(result.message || 'Не удалось удалить слот');
     }
-  };
+    setDeleteSlotTarget(null);
+  }
 
-  // Отмена добавления слота
-  const handleCancelAddSlot = () => {
-    setShowTimePicker(false);
-    setPickerTime('09:00');
-  };
+  async function handleDeleteClient() {
+    if (!deleteClientTarget) return;
+    vibrateMedium();
+    const result = await apiClient.deleteClient(deleteClientTarget.date, deleteClientTarget.time);
+    if (result.success) {
+      vibrateSuccess();
+      await loadData(true);
+    } else {
+      vibrateError();
+      alert(result.message || 'Не удалось удалить запись');
+    }
+    setDeleteClientTarget(null);
+  }
+
+  async function handleSaveClient() {
+    if (!editingClient) return;
+    setIsSaving(true);
+    vibrateMedium();
+    try {
+      let result;
+      if (editingClient.isNew) {
+        result = await apiClient.createClient({
+          name: editingClient.name,
+          phone: editingClient.phone,
+          date: editingClient.date,
+          time: editingClient.time,
+          username: editingClient.username,
+          note: editingClient.note,
+        });
+      } else {
+        result = await apiClient.updateClient({
+          name: editingClient.name,
+          phone: editingClient.phone,
+          date: editingClient.date,
+          time: editingClient.time,
+          username: editingClient.username,
+          note: editingClient.note,
+        });
+      }
+
+      if (result.success) {
+        vibrateSuccess();
+        setEditingClient(null);
+        await loadData(true);
+      } else {
+        vibrateError();
+        alert(result.message || 'Ошибка сохранения');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const workDaysList = Object.values(workDays).sort((a, b) =>
+    a.day_date.localeCompare(b.day_date)
+  );
+
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const totalBookings = Object.values(workDays).reduce(
+    (sum, day) => sum + day.slots.filter((s) => s.is_booked).length,
+    0
+  );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="liquid-glass-admin p-4 mt-3"
-    >
-      {/* ── Panel header ── */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Clock size={15} className="text-[#a07060]" />
-          <span className="text-[#3d2b1f] text-sm font-semibold capitalize">
-            {format(date, 'd MMMM', { locale: ru })}
-          </span>
+    <div className="space-y-4">
+      {/* ── Stats bar ── */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Рабочих дней', value: workDaysList.length },
+          { label: 'Всего слотов', value: Object.values(workDays).reduce((s, d) => s + d.slots.length, 0) },
+          { label: 'Записей', value: totalBookings },
+        ].map((stat) => (
+          <div key={stat.label} className="liquid-glass rounded-xl p-3 text-center">
+            <p className="text-xl font-bold text-[#3d2b1f]">{stat.value}</p>
+            <p className="text-[10px] text-[#9e8476] mt-0.5">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Add Work Day ── */}
+      <div className="liquid-glass rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3 flex items-center gap-2">
+          <Calendar size={15} className="text-[#c4967a]" />
+          Добавить рабочий день
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={newWorkDay}
+            onChange={(e) => setNewWorkDay(e.target.value)}
+            min={todayKey}
+            className="liquid-glass-input flex-1 px-3 py-2 rounded-xl text-[#3d2b1f] text-sm"
+          />
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={handleAddWorkDay}
+            disabled={!newWorkDay}
+            className="btn-primary px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <Plus size={15} />
+            Добавить
+          </motion.button>
+        </div>
+      </div>
+
+      {/* ── Add Time Slot ── */}
+      <div className="liquid-glass rounded-2xl p-4">
+        <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3 flex items-center gap-2">
+          <Clock size={15} className="text-[#c4967a]" />
+          Добавить слот
+        </h3>
+        <div className="flex gap-2 mb-2">
+          <select
+            value={newSlotDate}
+            onChange={(e) => setNewSlotDate(e.target.value)}
+            className="liquid-glass-input flex-1 px-3 py-2 rounded-xl text-[#3d2b1f] text-sm"
+          >
+            <option value="">Выберите дату</option>
+            {workDaysList.map((day) => (
+              <option key={day.day_date} value={day.day_date}>
+                {formatDateRu(day.day_date)}
+              </option>
+            ))}
+          </select>
+          <input
+            type="time"
+            value={newSlotTime}
+            onChange={(e) => setNewSlotTime(e.target.value)}
+            className="liquid-glass-input px-3 py-2 rounded-xl text-[#3d2b1f] text-sm w-28"
+          />
         </div>
         <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.92 }}
+          whileTap={{ scale: 0.97 }}
           onClick={handleAddSlot}
-          className="liquid-glass-nav h-9 px-4 rounded-xl flex items-center gap-1.5
-            text-[#7c5340] text-xs font-semibold hover:text-[#3d2b1f] transition-colors"
+          disabled={!newSlotDate || !newSlotTime}
+          className="w-full btn-primary py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          <Plus size={13} strokeWidth={2.5} />
-          <span>Слот</span>
+          <Plus size={15} />
+          Добавить слот
         </motion.button>
       </div>
 
-      {/* ── Time Picker Dialog ── */}
+      {/* ── Work Days List ── */}
+      <div className="liquid-glass rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-[#3d2b1f] flex items-center gap-2">
+            <Calendar size={15} className="text-[#c4967a]" />
+            Расписание
+          </h3>
+          <button
+            onClick={() => loadData(true)}
+            className="text-xs text-[#9e8476] px-2 py-1 rounded-lg liquid-glass-nav"
+          >
+            Обновить
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-6 h-6 border-2 border-[#c4967a]/30 border-t-[#c4967a] rounded-full spinner" />
+          </div>
+        ) : workDaysList.length === 0 ? (
+          <p className="text-sm text-[#9e8476] text-center py-6">
+            Нет рабочих дней. Добавьте первый рабочий день выше.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {workDaysList.map((day) => {
+              const isExpanded = expandedDays.has(day.day_date);
+              const bookedCount = day.slots.filter((s) => s.is_booked).length;
+              const totalSlots = day.slots.length;
+
+              return (
+                <div key={day.day_date} className="liquid-glass-calendar rounded-xl overflow-hidden">
+                  {/* Day header */}
+                  <button
+                    onClick={() => toggleDay(day.day_date)}
+                    className="w-full p-3 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-[#3d2b1f]">
+                          {formatDateRu(day.day_date)}
+                        </p>
+                        <p className="text-[10px] text-[#9e8476]">
+                          {bookedCount}/{totalSlots} записей
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {bookedCount > 0 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full badge-confirmed font-medium">
+                          {bookedCount} чел.
+                        </span>
+                      )}
+                      {isExpanded ? (
+                        <ChevronUp size={16} className="text-[#9e8476]" />
+                      ) : (
+                        <ChevronDown size={16} className="text-[#9e8476]" />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Day detail */}
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        key={`detail-${day.day_date}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-3 pb-3 border-t border-white/30 pt-2 space-y-2">
+                          {day.slots.length === 0 ? (
+                            <p className="text-xs text-[#9e8476] text-center py-2">
+                              Нет слотов. Добавьте выше.
+                            </p>
+                          ) : (
+                            day.slots.map((slot) => {
+                              const badge = slot.booking
+                                ? getStatusLabel(slot.booking.status)
+                                : null;
+
+                              return (
+                                <div
+                                  key={slot.time}
+                                  className={`rounded-xl p-2.5 ${
+                                    slot.is_booked
+                                      ? 'bg-white/40 border border-[#c4967a]/20'
+                                      : 'bg-white/20'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Clock size={12} className="text-[#c4967a]" />
+                                      <span className="text-sm font-semibold text-[#3d2b1f]">
+                                        {slot.time}
+                                      </span>
+                                      {badge && (
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge.className}`}>
+                                          {badge.label}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      {slot.is_booked && slot.booking && (
+                                        <button
+                                          onClick={() => {
+                                            vibrateLight();
+                                            setEditingClient({
+                                              date: day.day_date,
+                                              time: slot.time,
+                                              name: slot.booking!.client_name,
+                                              phone: slot.booking!.phone,
+                                              username: slot.booking!.username,
+                                              note: slot.booking!.note,
+                                            });
+                                          }}
+                                          className="w-7 h-7 flex items-center justify-center rounded-lg
+                                            bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors"
+                                        >
+                                          <Edit3 size={13} />
+                                        </button>
+                                      )}
+
+                                      {!slot.is_booked && (
+                                        <button
+                                          onClick={() => {
+                                            vibrateLight();
+                                            setEditingClient({
+                                              date: day.day_date,
+                                              time: slot.time,
+                                              name: '',
+                                              phone: '',
+                                              isNew: true,
+                                            });
+                                          }}
+                                          className="w-7 h-7 flex items-center justify-center rounded-lg
+                                            bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                                        >
+                                          <User size={13} />
+                                        </button>
+                                      )}
+
+                                      <button
+                                        onClick={() => setDeleteSlotTarget({ date: day.day_date, time: slot.time })}
+                                        className="w-7 h-7 flex items-center justify-center rounded-lg
+                                          bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Client info */}
+                                  {slot.booking && (
+                                    <div className="mt-2 pt-2 border-t border-white/30">
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        <User size={11} className="text-[#9e8476]" />
+                                        <span className="text-xs font-medium text-[#3d2b1f]">
+                                          {slot.booking.client_name}
+                                        </span>
+                                        {slot.booking.username && (
+                                          <span className="text-[10px] text-[#9e8476]">
+                                            @{slot.booking.username}
+                                          </span>
+                                        )}
+                                      </div>
+                                      {slot.booking.phone && (
+                                        <div className="flex items-center gap-1.5">
+                                          <Phone size={11} className="text-[#9e8476]" />
+                                          <span className="text-xs text-[#7c5340]">
+                                            {slot.booking.phone}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {slot.booking.note && (
+                                        <p className="text-[10px] text-[#9e8476] mt-1 italic">
+                                          {slot.booking.note}
+                                        </p>
+                                      )}
+
+                                      {/* Delete client button */}
+                                      <button
+                                        onClick={() =>
+                                          setDeleteClientTarget({
+                                            date: day.day_date,
+                                            time: slot.time,
+                                            clientName: slot.booking!.client_name,
+                                          })
+                                        }
+                                        className="mt-2 flex items-center gap-1 text-[10px] text-red-400
+                                          hover:text-red-600 transition-colors"
+                                      >
+                                        <XCircle size={11} />
+                                        Удалить запись
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Edit Client Modal ── */}
       <AnimatePresence>
-        {showTimePicker && (
+        {editingClient && (
           <motion.div
+            key="edit-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={handleCancelAddSlot}
+            className="fixed inset-0 z-50 flex items-end justify-center p-4 overlay-backdrop"
+            onClick={() => setEditingClient(null)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[#f5f0e8] rounded-2xl p-6 w-full max-w-sm"
+              initial={{ opacity: 0, y: 60 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="liquid-glass rounded-3xl p-5 w-full max-w-sm"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-[#3d2b1f] text-lg font-semibold mb-4 text-center">
-                Выберите время
-              </h3>
-              <input
-                type="time"
-                value={pickerTime}
-                onChange={(e) => setPickerTime(e.target.value)}
-                className="w-full px-4 py-3 text-lg text-center text-[#3d2b1f] font-semibold bg-white border-2 border-[#e8e0d0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 focus:border-[#c4967a] mb-4"
-              />
-              <div className="flex gap-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-[#3d2b1f]">
+                  {editingClient.isNew ? 'Добавить клиента' : 'Редактировать запись'}
+                </h3>
                 <button
-                  onClick={handleCancelAddSlot}
-                  className="flex-1 px-4 py-3 bg-[#e8e0d0] text-[#3d2b1f] font-semibold rounded-xl hover:bg-[#d4c8b8] transition-colors"
+                  onClick={() => setEditingClient(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl liquid-glass-nav text-[#9e8476]"
                 >
-                  Отмена
+                  <X size={16} />
                 </button>
-                <button
-                  onClick={handleConfirmAddSlot}
-                  className="flex-1 px-4 py-3 bg-[#c4967a] text-white font-semibold rounded-xl hover:bg-[#b0865f] transition-colors"
-                >
-                  Добавить
-                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-[#9e8476] mb-1 block">Слот</label>
+                  <p className="text-sm font-medium text-[#3d2b1f]">
+                    {formatDateRu(editingClient.date)} в {editingClient.time}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-[#9e8476] mb-1.5 block">Имя клиента *</label>
+                  <input
+                    type="text"
+                    value={editingClient.name}
+                    onChange={(e) =>
+                      setEditingClient((prev) => prev ? { ...prev, name: e.target.value } : null)
+                    }
+                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm"
+                    placeholder="Имя"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-[#9e8476] mb-1.5 block">Телефон</label>
+                  <input
+                    type="tel"
+                    value={editingClient.phone}
+                    onChange={(e) =>
+                      setEditingClient((prev) => prev ? { ...prev, phone: e.target.value } : null)
+                    }
+                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm"
+                    placeholder="+7 978 423-74-53"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-[#9e8476] mb-1.5 block">Username Telegram</label>
+                  <input
+                    type="text"
+                    value={editingClient.username || ''}
+                    onChange={(e) =>
+                      setEditingClient((prev) => prev ? { ...prev, username: e.target.value } : null)
+                    }
+                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm"
+                    placeholder="@username"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-[#9e8476] mb-1.5 block">Заметка</label>
+                  <textarea
+                    value={editingClient.note || ''}
+                    onChange={(e) =>
+                      setEditingClient((prev) => prev ? { ...prev, note: e.target.value } : null)
+                    }
+                    rows={2}
+                    className="liquid-glass-input w-full px-3 py-2.5 rounded-xl text-[#3d2b1f] text-sm resize-none"
+                    placeholder="Доп. информация..."
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => setEditingClient(null)}
+                    className="flex-1 py-2.5 rounded-xl liquid-glass-nav text-[#7c5340] text-sm font-medium"
+                  >
+                    Отмена
+                  </button>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleSaveClient}
+                    disabled={isSaving || !editingClient.name.trim()}
+                    className="flex-1 py-2.5 rounded-xl btn-primary text-sm font-medium
+                      disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full spinner" />
+                    ) : (
+                      <>
+                        <Save size={14} />
+                        Сохранить
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Slots list ── */}
-      <div className="flex flex-col gap-1.5">
-        {slots.length === 0 ? (
-          <p className="text-center text-[#9e8476] text-xs py-3">
-            Нет слотов — нажмите «+ Слот»
-          </p>
-        ) : (
-          slots.sort().map(time => {
-            const client = getClientForSlot(time);
-            const isBooked = !!client;
-            const isEditing = editingSlot === time;
+      {/* ── Confirm Modals ── */}
+      <ConfirmModal
+        isOpen={!!deleteSlotTarget}
+        title="Удалить слот?"
+        message={`Вы уверены, что хотите удалить слот ${deleteSlotTarget?.time}?`}
+        warning={deleteSlotTarget ? 'Если слот занят, запись также будет удалена' : undefined}
+        confirmText="Удалить"
+        onConfirm={handleDeleteSlot}
+        onCancel={() => setDeleteSlotTarget(null)}
+        danger
+      />
 
-            return (
-              <AnimatePresence mode="wait" key={time}>
-                {isEditing ? (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="liquid-glass-slot p-3 rounded-xl space-y-2"
-                  >
-                    <input
-                      type="text"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      placeholder="Имя клиента"
-                      className="w-full px-3 py-2 rounded-lg bg-white/50 border border-white/40 text-[#3d2b1f] text-base placeholder-[#9e8476] focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50"
-                    />
-                    <motion.button
-                      type="button"
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
-                      className="w-full px-3 py-2 rounded-lg bg-white/50 border border-white/40 text-[#3d2b1f] text-base focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 text-left"
-                    >
-                      <input
-                        type="time"
-                        value={editForm.time}
-                        onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
-                        className="w-full bg-transparent border-none focus:outline-none text-[#3d2b1f]"
-                        onClick={(e) => e.currentTarget.showPicker?.()}
-                      />
-                    </motion.button>
-                    <input
-                      type="text"
-                      value={editForm.username}
-                      onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                      placeholder="@username (опционально)"
-                      className="w-full px-3 py-2 rounded-lg bg-white/50 border border-white/40 text-[#3d2b1f] text-base placeholder-[#9e8476] focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50"
-                    />
-                    <textarea
-                      value={editForm.note}
-                      onChange={(e) => setEditForm({ ...editForm, note: e.target.value })}
-                      placeholder="Примечание (запись через телефон и т.д.)"
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-lg bg-white/50 border border-white/40 text-[#3d2b1f] text-base placeholder-[#9e8476] focus:outline-none focus:ring-2 focus:ring-[#c4967a]/50 resize-none"
-                    />
-                    <div className="flex gap-2">
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.92 }}
-                        onClick={handleSave}
-                        className="small-touch flex-1 h-9 px-4 rounded-xl bg-[#2e7d5e] text-white text-xs font-semibold hover:bg-[#2e7d5e]/80 transition-colors"
-                      >
-                        Сохранить
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.92 }}
-                        onClick={handleCancel}
-                        className="small-touch flex-1 h-9 px-4 rounded-xl bg-[#c4967a]/20 text-[#c4967a] text-xs font-semibold hover:bg-[#c4967a]/30 transition-colors"
-                      >
-                        Отмена
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={time}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    onClick={() => handleEdit(time)}
-                    className={`
-                      h-11 flex items-center justify-between px-3 rounded-xl cursor-pointer
-                      ${isBooked
-                        ? client.status === 'pending'
-                          ? 'liquid-glass-slot bg-[#ef4444]/10 border border-[#ef4444]/30'
-                          : 'liquid-glass-slot bg-[#2e7d5e]/10 border border-[#2e7d5e]/30'
-                        : 'liquid-glass-slot'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="text-[#8b6049] text-sm font-semibold leading-4">{time}</span>
-                      {isBooked && (
-                        <>
-                          <span className="text-[#9e8476] leading-4">•</span>
-                          <span className="text-[#3d2b1f] text-xs font-medium leading-4">{client.name}</span>
-                          {(client.username || client.userId) && (
-                            <a
-                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                              href={client.username ? `https://t.me/${client.username}` : `https://t.me/user?id=${client.userId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[#2e7d5e] text-xs font-medium hover:underline leading-4 inline-flex items-center"
-                            >
-                              @{client.username || client.userId}
-                            </a>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.1)' }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={(e: React.MouseEvent) => {
-                        e.stopPropagation();
-                        vibrate(VIBRATION_PATTERNS.DELETE);
-                        onRemoveSlot(time);
-                      }}
-                      className="small-touch w-8 h-8 flex items-center justify-center rounded-lg
-                        text-[#c4967a] hover:text-red-400 hover:bg-red-50/30
-                        transition-all duration-200 flex-shrink-0"
-                      title="Удалить слот"
-                    >
-                      <Trash2 size={14} strokeWidth={2} />
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            );
-          })
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── Clients Tab ──────────────────────────────────────────────────────────────
-function ClientsTab({ clients, onConfirmBooking }: { clients: typeof MOCK_CLIENTS; onConfirmBooking: (clientId: number) => void }) {
-  const [clientsSubTab, setClientsSubTab] = useState<'all' | 'pending'>('all');
-  const pendingClients = clients.filter(c => c.status === 'pending');
-  const { vibrate } = useVibration();
-
-  return (
-    <div className="flex flex-col gap-2 mt-1">
-      {/* Sub-tab switcher */}
-      <div className="liquid-glass-tab rounded-full p-1.5 flex relative mb-3">
-        <AnimatePresence mode="wait">
-          {pendingClients.length > 0 && (
-            <>
-              <motion.button
-                key="all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  vibrate(VIBRATION_PATTERNS.MEDIUM);
-                  setClientsSubTab('all');
-                }}
-                className={`
-                  flex-1 h-8 rounded-full text-[11px] font-semibold transition-all duration-200 relative z-10
-                  ${clientsSubTab === 'all' ? 'text-[#3d2b1f]' : 'text-[#9e8476] hover:text-[#7c5340]'}
-                `}
-              >
-                Все клиенты
-              </motion.button>
-              <motion.button
-                key="pending"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  vibrate(VIBRATION_PATTERNS.MEDIUM);
-                  setClientsSubTab('pending');
-                }}
-                className={`
-                  flex-1 h-8 rounded-full text-[11px] font-semibold transition-all duration-200 relative z-10
-                  ${clientsSubTab === 'pending' ? 'text-[#3d2b1f]' : 'text-[#9e8476] hover:text-[#7c5340]'}
-                `}
-              >
-                Ожидающие ({pendingClients.length})
-              </motion.button>
-              <motion.div
-                layoutId="clientsTabBg"
-                className="absolute inset-1.5 bg-white/40 rounded-full"
-                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  left: clientsSubTab === 'all' ? '0%' : '50%',
-                  right: clientsSubTab === 'all' ? '50%' : '0%',
-                }}
-              />
-            </>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Clients list */}
-      <div className="flex flex-col gap-2">
-        {(clientsSubTab === 'pending' ? pendingClients : clients).map((client, index) => (
-          <motion.div
-            key={client.id}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-            whileHover={{ scale: 1.01, backgroundColor: 'rgba(255, 255, 255, 0.12)' }}
-            className={`liquid-glass-admin p-3 flex items-center justify-between rounded-xl ${
-              client.status === 'pending' ? 'border-l-4 border-l-[#ef4444]' : ''
-            }`}
-          >
-            <div className="flex items-center gap-3 flex-1">
-              {/* Avatar */}
-              <div className="w-10 h-10 rounded-2xl bg-[rgba(255,244,234,0.85)] border border-white/40
-                flex items-center justify-center text-sm font-semibold text-[#8b6049]">
-                {client.name[0]}
-              </div>
-              <div className="flex-1">
-                <p className="text-[#3d2b1f] text-sm font-semibold leading-tight">{client.name}</p>
-                <p className="text-[#9e8476] text-[11px] mt-0.5">{client.service}</p>
-                {(client.username || client.userId) && (
-                  <motion.a
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => vibrate(VIBRATION_PATTERNS.LIGHT)}
-                    href={client.username ? `https://t.me/${client.username}` : `https://t.me/user?id=${client.userId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#2e7d5e] text-[10px] font-medium hover:underline mt-0.5 inline-block"
-                  >
-                    @{client.username || client.userId}
-                  </motion.a>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-[#7c5340] text-xs font-semibold">{client.time}</p>
-                <p className="text-[#9e8476] text-[10px] mt-0.5">
-                  {format(parseISO(client.date), 'd MMM', { locale: ru })}
-                </p>
-              </div>
-              {client.status === 'pending' && (
-                <motion.button
-                  whileHover={{ scale: 1.05, backgroundColor: 'rgba(46, 125, 94, 0.9)' }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    vibrate(VIBRATION_PATTERNS.IMPORTANT);
-                    onConfirmBooking(client.id);
-                  }}
-                  className="h-8 px-3 rounded-xl bg-[#2e7d5e] text-white text-[10px] font-semibold hover:bg-[#2e7d5e]/80 transition-colors"
-                >
-                  Подтвердить
-                </motion.button>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Main AdminSchedulePanel ──────────────────────────────────────────────────
-export default function AdminSchedulePanel() {
-  const [activeTab, setActiveTab]   = useState<'calendar' | 'clients'>('calendar');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDay, setSelectedDay]   = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
-  const { slots, addSlot, removeSlot, error: slotsError } = useSlotsAPI();
-  const { clients, addClient: addClientAPI, updateClient: updateClientAPI } = useClientsAPI();
-  const { vibrate } = useVibration();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const days = getMonthDays(currentMonth);
-
-  const prevMonth = useCallback(() => {
-    vibrate(VIBRATION_PATTERNS.LIGHT);
-    setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-  }, [vibrate]);
-
-  const nextMonth = useCallback(() => {
-    vibrate(VIBRATION_PATTERNS.LIGHT);
-    setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-  }, [vibrate]);
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft:  nextMonth,
-    onSwipedRight: prevMonth,
-    trackTouch: true,
-    delta: 50,
-  });
-
-  const updateClient = async (oldTime: string, newClient: { name: string; time: string; userId?: string; username?: string; note?: string }, isNewClient: boolean) => {
-    const dateKey = selectedDay;
-    if (!dateKey) return;
-
-    if (isNewClient) {
-      // Создание нового клиента через API
-      const hasTelegram = !!(newClient.username || newClient.userId);
-      await addClientAPI({
-        name: newClient.name,
-        phone: '', // Будет заполнено в форме
-        date: dateKey,
-        time: newClient.time,
-        service: 'Запись',
-        username: newClient.username,
-        userId: newClient.userId,
-        note: newClient.note,
-        status: hasTelegram ? 'pending' : 'confirmed',
-      });
-    } else {
-      // Обновление существующего клиента через API
-      const existingClient = clients.find(c => c.date === dateKey && c.time === oldTime);
-      if (existingClient) {
-        await updateClientAPI({
-          ...existingClient,
-          name: newClient.name,
-          time: newClient.time,
-          username: newClient.username,
-          userId: newClient.userId || existingClient.userId,
-          note: newClient.note,
-        });
-      }
-    }
-  };
-
-  const confirmBooking = async (clientId: number) => {
-    const client = clients.find(c => c.id === clientId);
-    if (!client) return;
-
-    // Проверяем наличие username или userId
-    if (!client.username && !client.userId) {
-      console.error('Нет username или userId для отправки сообщения');
-      return;
-    }
-
-    // Обновляем статус через API
-    await updateClientAPI({
-      ...client,
-      status: 'confirmed',
-    });
-  };
-
-  const selectedDate = selectedDay ? parseISO(selectedDay) : null;
-  const selectedSlots = selectedDay ? (slots[selectedDay] ?? []) : [];
-
-  const getClientsForDate = (date: Date): typeof MOCK_CLIENTS => {
-    const key = format(date, 'yyyy-MM-dd');
-    return clients.filter((client: typeof MOCK_CLIENTS[0]) => client.date === key);
-  };
-
-  return (
-    <div className="liquid-glass-admin p-4 w-full">
-
-      {/* Mobile Messages */}
-      <AnimatePresence>
-        {slotsError && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-800 text-xs mb-4"
-          >
-            <div className="font-semibold">ERROR:</div>
-            <div className="mt-1">{slotsError}</div>
-            <div className="mt-2 text-red-600">
-              Backend: {import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com'}
-            </div>
-          </motion.div>
-        )}
-
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-800 text-xs mb-4"
-          >
-            <div className="font-semibold">SUCCESS:</div>
-            <div className="mt-1">{successMessage}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[#3d2b1f] font-semibold text-base">
-          Панель мастера
-        </h2>
-      </div>
-
-      {/* ── Tab switcher ── */}
-      <div className="liquid-glass-tab rounded-full p-1.5 flex relative mb-4">
-        {/* Sliding indicator */}
-        <motion.div
-          layout
-          className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] rounded-full bg-white shadow-sm"
-          animate={{ left: activeTab === 'calendar' ? '6px' : 'calc(50% + 3px)' }}
-          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-        />
-
-        {(['calendar', 'clients'] as const).map(tab => (
-          <motion.button
-            key={tab}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              vibrate(VIBRATION_PATTERNS.MEDIUM);
-              setActiveTab(tab);
-            }}
-            className={`
-              flex-1 h-11 rounded-full flex items-center justify-center gap-2 relative z-10
-              text-sm font-medium transition-colors duration-300
-              ${activeTab === tab ? 'text-[#3d2b1f]' : 'text-[#9e8476] hover:text-[#3d2b1f]'}
-            `}
-          >
-            {tab === 'calendar'
-              ? <><CalendarIcon size={16} /><span>Календарь</span></>
-              : <><Users size={16} /><span>Клиенты</span></>
-            }
-          </motion.button>
-        ))}
-      </div>
-
-      {/* ── Tab content ── */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'calendar' ? (
-          <motion.div
-            key="calendar"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            transition={{ duration: 0.20 }}
-          >
-            {/* Admin calendar grid */}
-            <div className="liquid-glass-calendar p-3" {...swipeHandlers}>
-              {/* Month navigation */}
-              <div className="flex items-center justify-between mb-3">
-                <NavButton direction="left" onClick={prevMonth} />
-                <motion.span
-                  key={format(currentMonth, 'yyyy-MM')}
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-[#3d2b1f] font-semibold text-sm capitalize"
-                >
-                  {format(currentMonth, 'LLLL yyyy', { locale: ru })}
-                </motion.span>
-                <NavButton direction="right" onClick={nextMonth} />
-              </div>
-
-              {/* Days of week */}
-              <div className="grid grid-cols-7 mb-1.5">
-                {DAYS_HEADER.map(d => (
-                  <div key={d} className="flex items-center justify-center">
-                    <span className="text-[10px] font-semibold text-[#9e8476] uppercase tracking-widest">
-                      {d}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Days grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {days.map(date => {
-                  const key = format(date, 'yyyy-MM-dd');
-                  const clientsForDate = getClientsForDate(date);
-
-                  return (
-                    <AdminDayCard
-                      key={key}
-                      date={date}
-                      slots={slots[key] ?? []}
-                      isCurrentMonth={isSameMonth(date, currentMonth)}
-                      isSelected={selectedDay === key}
-                      onClick={() => setSelectedDay(prev => prev === key ? null : key)}
-                      bookedClients={clientsForDate.map(c => ({ time: c.time, status: c.status }))}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Selected day panel */}
-            <AnimatePresence>
-              {selectedDay && selectedDate && (
-                <SelectedDayPanel
-                  date={selectedDate}
-                  slots={selectedSlots}
-                  onAddSlot={time => addSlot(selectedDay, time)}
-                  onRemoveSlot={time => removeSlot(selectedDay, time)}
-                  bookedClients={getClientsForDate(selectedDate)}
-                  onUpdateClient={updateClient}
-                />
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="clients"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.20 }}
-          >
-            <ClientsTab clients={clients} onConfirmBooking={confirmBooking} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ConfirmModal
+        isOpen={!!deleteClientTarget}
+        title="Удалить запись?"
+        message={`Удалить запись клиента ${deleteClientTarget?.clientName || ''}?`}
+        warning="Слот снова станет доступен для записи"
+        confirmText="Удалить"
+        onConfirm={handleDeleteClient}
+        onCancel={() => setDeleteClientTarget(null)}
+        danger
+      />
     </div>
   );
 }

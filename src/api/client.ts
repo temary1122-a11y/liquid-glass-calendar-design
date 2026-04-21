@@ -1,179 +1,329 @@
 // ============================================================
-// src/api/client.ts — API клиент для Liquid Glass Calendar Design
+// src/api/client.ts — HTTP клиент для работы с backend API
 // ============================================================
+
+import { BACKEND_URL, BOT_CONFIG, ADMIN_SECRET_KEY } from '../config';
+
+// Simple pseudo-HMAC for admin auth (matches backend)
+function createAdminSignature(adminId: string): string {
+  const secretBytes = new TextEncoder().encode(ADMIN_SECRET_KEY);
+  const messageBytes = new TextEncoder().encode(adminId);
+  let hash = 0;
+  const combined = new Uint8Array([...secretBytes, ...messageBytes]);
+  for (let i = 0; i < combined.length; i++) {
+    hash = ((hash << 5) - hash) + combined[i];
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16).padStart(64, '0').slice(0, 64);
+}
+
+function getAdminHeaders(): Record<string, string> {
+  const adminId = BOT_CONFIG.ADMIN_ID;
+  return {
+    'Content-Type': 'application/json',
+    'x-admin-id': adminId,
+    'x-admin-signature': createAdminSignature(adminId),
+  };
+}
+
+function getUserInitData(): string {
+  return window.Telegram?.WebApp?.initData || '';
+}
+
+// ─── Types ───────────────────────────────────────────────────
+
+export interface TimeSlot {
+  time: string;
+  available: boolean;
+}
+
+export interface WorkDay {
+  date: string;
+  slots: TimeSlot[];
+  is_closed: boolean;
+}
+
+export interface BookingRequest {
+  name: string;
+  phone?: string;
+  date: string;
+  time: string;
+  service_id?: string;
+  user_id?: number;
+  username?: string;
+}
+
+export interface BookingResponse {
+  success: boolean;
+  message: string;
+  booking_id?: number;
+}
+
+export interface UserBooking {
+  id: number;
+  client_name: string;
+  phone?: string;
+  day_date: string;
+  slot_time: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  is_cancelled: boolean;
+  cancel_reason?: string;
+  created_at: string;
+  cancelled_at?: string;
+}
+
+export interface AdminWorkDay {
+  day_date: string;
+  is_closed: boolean;
+  slots: AdminSlot[];
+}
+
+export interface AdminSlot {
+  time: string;
+  is_booked: boolean;
+  booking?: AdminBooking;
+}
+
+export interface AdminBooking {
+  id: number;
+  client_name: string;
+  phone: string;
+  username?: string;
+  user_id?: number;
+  note?: string;
+  status: string;
+}
+
+// ─── API Client ──────────────────────────────────────────────
 
 class ApiClient {
   private baseUrl: string;
 
-  constructor() {
-    // Используем BASE_URL из env или дефолтное значение (Render URL)
-    this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com';
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
+  // ── Client endpoints ──────────────────────────────────────
 
-    console.group(`API Request: ${options.method || 'GET'} ${endpoint}`);
-    console.log('URL:', url);
-    console.log('Options:', options);
-
-    if (options.body) {
-      console.log('Body (string):', options.body);
-      try {
-        console.log('Body (parsed):', JSON.parse(options.body as string));
-      } catch (e) {
-        console.error('Body is not valid JSON!');
-      }
-    }
-
+  async getAvailableDates(): Promise<WorkDay[]> {
     try {
-      const response = await fetch(url, {
-        ...options,
+      const res = await fetch(`${this.baseUrl}/api/booking/available-dates`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('getAvailableDates error:', e);
+      return [];
+    }
+  }
+
+  async createBooking(data: BookingRequest): Promise<BookingResponse> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/booking/book`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+        return { success: false, message: err.message || 'Ошибка сервера' };
+      }
+      return await res.json();
+    } catch (e) {
+      console.error('createBooking error:', e);
+      return { success: false, message: 'Ошибка соединения с сервером' };
+    }
+  }
+
+  async getUserBookings(userId: number): Promise<UserBooking[]> {
+    try {
+      const initData = getUserInitData();
+      const res = await fetch(
+        `${this.baseUrl}/api/profile/bookings?user_id=${userId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(initData ? { 'x-init-data': initData } : {}),
+          },
+        }
+      );
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      console.error('getUserBookings error:', e);
+      return [];
+    }
+  }
+
+  async cancelBookingByUser(
+    bookingId: number,
+    reason: string,
+    userId: number
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const initData = getUserInitData();
+      const res = await fetch(`${this.baseUrl}/api/profile/cancel`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...options.headers,
+          ...(initData ? { 'x-init-data': initData } : {}),
         },
+        body: JSON.stringify({ booking_id: bookingId, reason, user_id: userId }),
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      const data = await response.json();
-      console.log('Response data:', data);
-      console.groupEnd();
-
-      if (!response.ok) {
-        throw new Error((data as any).detail || `HTTP ${response.status}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Ошибка' }));
+        return { success: false, message: err.message };
       }
-
-      return data;
-    } catch (error) {
-      console.error('Request failed:', error);
-      console.groupEnd();
-      throw error;
+      return await res.json();
+    } catch (e) {
+      console.error('cancelBookingByUser error:', e);
+      return { success: false, message: 'Ошибка соединения' };
     }
   }
 
-  // Booking endpoints
-  async getAvailableDates() {
-    return this.request('/api/booking/available-dates');
+  // ── Admin endpoints ──────────────────────────────────────
+
+  async getWorkDaysWithBookings(): Promise<Record<string, AdminWorkDay>> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/work-days-with-bookings`, {
+        headers: getAdminHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('getWorkDaysWithBookings error:', e);
+      return {};
+    }
   }
 
-  async createBooking(bookingData: any) {
-    return this.request('/api/booking/book', {
-      method: 'POST',
-      body: JSON.stringify(bookingData),
-    });
+  async addTimeSlot(
+    date: string,
+    time: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/add-time-slot`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify({ date, time }),
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('addTimeSlot error:', e);
+      return { success: false, message: 'Ошибка соединения' };
+    }
   }
 
-  async getMyBookings(userId: string) {
-    return this.request(`/api/booking/my-bookings/${userId}`);
+  async deleteTimeSlot(
+    date: string,
+    time: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/delete-time-slot`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify({ date, time }),
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('deleteTimeSlot error:', e);
+      return { success: false, message: 'Ошибка соединения' };
+    }
   }
 
-  async cancelBooking(bookingId: string) {
-    return this.request(`/api/booking/cancel/${bookingId}`, {
-      method: 'DELETE',
-    });
+  async createClient(data: {
+    name: string;
+    phone: string;
+    date: string;
+    time: string;
+    username?: string;
+    user_id?: number;
+    note?: string;
+  }): Promise<{ success: boolean; message: string; booking_id?: number }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/create-client`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify(data),
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('createClient error:', e);
+      return { success: false, message: 'Ошибка соединения' };
+    }
   }
 
-  // Admin endpoints
-  async getGUISettings() {
-    return this.request('/api/admin/settings');
+  async updateClient(data: {
+    name: string;
+    phone: string;
+    date: string;
+    time: string;
+    username?: string;
+    note?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/update-client`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify(data),
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('updateClient error:', e);
+      return { success: false, message: 'Ошибка соединения' };
+    }
   }
 
-  async updateGUISettings(settings: any) {
-    return this.request('/api/admin/settings', {
-      method: 'POST',
-      body: JSON.stringify(settings),
-    });
+  async deleteClient(
+    date: string,
+    time: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/delete-client`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify({ date, time }),
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('deleteClient error:', e);
+      return { success: false, message: 'Ошибка соединения' };
+    }
   }
 
-  async getWorkDays(adminId: string) {
-    return this.request('/api/admin/work-days', {
-      headers: {
-        'x-admin-id': adminId,
-      },
-    });
+  async notifyCancellation(data: {
+    client_name: string;
+    slot_time: string;
+    day_date: string;
+    reason?: string;
+  }): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/api/admin/notify-cancellation`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify(data),
+      });
+    } catch (e) {
+      console.error('notifyCancellation error:', e);
+    }
   }
 
-  async addWorkDay(date: string, timeSlots: string[], adminId: string) {
-    const body = { date, time_slots: timeSlots };
-    return this.request('/api/admin/add-work-day', {
-      method: 'POST',
-      body: JSON.stringify(body),
-      headers: {
-        'x-admin-id': adminId,
-      },
-    });
-  }
-
-  async addTimeSlot(adminId: string, date: string, time: string) {
-    console.log(`[API] addTimeSlot → date: ${date}, time: ${time}, adminId: ${adminId}`);
-    return this.request('/api/admin/add-time-slot', {
-      method: 'POST',
-      body: JSON.stringify({ date, time }),
-      headers: {
-        'x-admin-id': adminId,
-      },
-    });
-  }
-
-  async deleteTimeSlot(adminId: string, date: string, time: string) {
-    return this.request('/api/admin/delete-time-slot', {
-      method: 'POST',
-      body: JSON.stringify({ date, time }),
-      headers: {
-        'x-admin-id': adminId,
-      },
-    });
-  }
-
-  async deleteWorkDay(day_date: string) {
-    return this.request('/api/admin/delete-work-day', {
-      method: 'POST',
-      body: JSON.stringify({ day_date }),
-    });
-  }
-
-  async getBookingsForDate(date: string) {
-    return this.request(`/api/admin/bookings/${date}`);
-  }
-
-  async openDay(date: string, adminId: string) {
-    return this.request('/api/admin/open-day', {
-      method: 'POST',
-      headers: {
-        'x-admin-id': adminId,
-      },
-      body: JSON.stringify({ date }),
-    });
-  }
-
-  async closeDay(date: string, adminId: string) {
-    return this.request('/api/admin/close-day', {
-      method: 'POST',
-      headers: {
-        'x-admin-id': adminId,
-      },
-      body: JSON.stringify({ date }),
-    });
-  }
-
-  // Новые методы для отмены и истории
-  async cancelBookingWithReason(bookingId: number, reason: string) {
-    return this.request(`/api/bookings/${bookingId}/cancel`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    });
-  }
-
-  async getBookingHistory() {
-    return this.request('/api/bookings/history');
-  }
-
-  async getCancelledBookings() {
-    return this.request('/api/bookings/cancelled');
+  async addWorkDay(
+    date: string,
+    slots?: string[]
+  ): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/add-work-day`, {
+        method: 'POST',
+        headers: getAdminHeaders(),
+        body: JSON.stringify({ date, time_slots: slots }),
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('addWorkDay error:', e);
+      return { success: false, message: 'Ошибка соединения' };
+    }
   }
 }
 
-export const apiClient = new ApiClient();
+export const apiClient = new ApiClient(BACKEND_URL);

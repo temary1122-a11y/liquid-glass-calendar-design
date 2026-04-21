@@ -1,374 +1,349 @@
-import { useState, useCallback, useEffect } from 'react';
+// ============================================================
+// src/components/Calendar.tsx — Календарь выбора даты и слота
+// ============================================================
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { apiClient, type WorkDay } from '../api/client';
 import BookingForm from './BookingForm';
-import { apiClient } from '../api/client';
-import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameMonth,
-  isToday,
-  isBefore,
-  startOfDay,
-} from 'date-fns';
-import { ru } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
-import { useSwipeable } from 'react-swipeable';
-import { vibrateMedium, vibrateNavigation } from '../utils/vibration';
+import { vibrateLight, vibrateSelection, vibrateMedium } from '../utils/vibration';
 
-const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const VISIBLE_SLOTS = 3; // slots shown before overflow
+const MONTH_NAMES = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getMonthDays(month: Date): Date[] {
-  const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-  const end = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
-  return eachDayOfInterval({ start, end });
+const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+interface CalendarProps {
+  hasActiveBooking?: boolean;
+  onBookingCreated?: () => void;
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+export default function Calendar({ hasActiveBooking = false, onBookingCreated }: CalendarProps) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-interface NavButtonProps {
-  onClick: () => void;
-  direction: 'left' | 'right';
-}
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [workDays, setWorkDays] = useState<WorkDay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
-function NavButton({ onClick, direction }: NavButtonProps) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.90 }}
-      onClick={onClick}
-      className="liquid-glass-nav w-11 h-11 flex items-center justify-center rounded-2xl
-        text-[#a07060] hover:text-[#7c5340] transition-colors duration-200"
-      aria-label={direction === 'left' ? 'Предыдущий месяц' : 'Следующий месяц'}
-    >
-      {direction === 'left'
-        ? <ChevronLeft size={18} strokeWidth={2.5} />
-        : <ChevronRight size={18} strokeWidth={2.5} />
-      }
-    </motion.button>
-  );
-}
+  // Map: "YYYY-MM-DD" → slots[]
+  const availableDatesMap = workDays.reduce<Record<string, string[]>>((acc, wd) => {
+    acc[wd.date] = wd.slots.filter((s) => s.available).map((s) => s.time);
+    return acc;
+  }, {});
 
-interface SlotButtonProps {
-  time: string;
-  onClick?: () => void;
-}
+  const loadDates = useCallback(async (quiet = false) => {
+    if (!quiet) setIsLoading(true);
+    else setIsRefreshing(true);
+    try {
+      const data = await apiClient.getAvailableDates();
+      setWorkDays(data);
+    } catch {
+      console.error('Failed to load dates');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
-function SlotButton({ time, onClick }: SlotButtonProps) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.94 }}
-      onClick={onClick}
-      className="liquid-glass-slot h-5.5 w-full px-1 rounded-lg
-        flex items-center justify-center
-        text-[#8b6049] text-[10px] font-semibold tracking-wide
-        hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)]
-        transition-all duration-200 select-none"
-    >
-      {time}
-    </motion.button>
-  );
-}
+  useEffect(() => {
+    loadDates();
+  }, [loadDates]);
 
-interface GhostExpandButtonProps {
-  count: number;
-  onClick: () => void;
-}
+  // Calendar grid helpers
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  // Convert Sunday=0 → 6, Monday=1 → 0, etc.
+  const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
-function GhostExpandButton({ count, onClick }: GhostExpandButtonProps) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      onClick={onClick}
-      className="absolute bottom-[-5px] left-1 right-1 h-4.5 flex items-center justify-center gap-0.5
-        rounded-lg bg-white/5 hover:bg-white/12
-        text-[#c4967a] text-[9px] font-medium
-        transition-all duration-200 select-none"
-    >
-      <span>+{count}</span>
-      <ChevronDown size={9} strokeWidth={2.5} />
-    </motion.button>
-  );
-}
-
-interface CollapseButtonProps {
-  onClick: () => void;
-}
-
-function CollapseButton({ onClick }: CollapseButtonProps) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      onClick={onClick}
-      className="absolute bottom-0 left-1 right-1 h-3.5 flex items-center justify-center
-        text-[#c4967a] hover:text-[#a07060]
-        transition-colors duration-200 select-none"
-    >
-      <ChevronUp size={9} strokeWidth={2.5} />
-    </motion.button>
-  );
-}
-
-// ─── DayCard ─────────────────────────────────────────────────────────────────
-
-interface DayCardProps {
-  date: Date;
-  slots: string[];
-  isCurrentMonth: boolean;
-  isExpanded: boolean;
-  onExpand: () => void;
-  onCollapse: () => void;
-  onSlotClick: (time: string) => void;
-}
-
-function DayCard({
-  date,
-  slots,
-  isCurrentMonth,
-  isExpanded,
-  onExpand,
-  onCollapse,
-  onSlotClick,
-}: DayCardProps) {
-  const isPast = isBefore(startOfDay(date), startOfDay(new Date()));
-  const isCurrentDay = isToday(date);
-  const dateKey = format(date, 'yyyy-MM-dd');
-  const hasSlots = slots.length > 0;
-  const visibleSlots = slots.slice(0, VISIBLE_SLOTS);
-  const hiddenSlots = slots.slice(VISIBLE_SLOTS);
-  const overflowCount = hiddenSlots.length;
-
-  if (!isCurrentMonth) {
-    return (
-      <div className="rounded-3xl min-h-[90px]" />
-    );
+  function toDateKey(year: number, month: number, day: number): string {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
-  return (
-    <motion.div
-      layout
-      layoutId={dateKey}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className={`
-        relative rounded-3xl p-1 pb-0.5 min-h-[90px]
-        liquid-glass-calendar cursor-default select-none
-        ${isPast ? 'opacity-45' : ''}
-        ${isCurrentDay ? 'ring-1 ring-[#2e7d5e]/40' : ''}
-      `}
-    >
-      {/* Glass highlight shimmer */}
-      <div className="glass-highlight absolute inset-x-0 top-0 h-[45%] rounded-t-3xl pointer-events-none z-10" />
+  function toDate(year: number, month: number, day: number): Date {
+    const d = new Date(year, month, day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
 
-      {/* Day number */}
-      <div className="absolute top-[-8px] left-[-3px] z-20">
-        <span className={`
-          text-[11px] font-semibold tracking-tight leading-none
-          ${isCurrentDay ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
-        `}>
-          {format(date, 'd')}
-        </span>
-      </div>
+  function prevMonth() {
+    vibrateLight();
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear((y) => y - 1);
+    } else {
+      setCurrentMonth((m) => m - 1);
+    }
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setShowBookingForm(false);
+  }
 
-      {/* Visible slots */}
-      {hasSlots && !isPast && (
-        <motion.div layout className="flex flex-col gap-0 pt-2">
-          {visibleSlots.map(time => (
-            <SlotButton
-              key={time}
-              time={time}
-              onClick={() => onSlotClick?.(time)}
-            />
-          ))}
+  function nextMonth() {
+    vibrateLight();
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear((y) => y + 1);
+    } else {
+      setCurrentMonth((m) => m + 1);
+    }
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setShowBookingForm(false);
+  }
 
-          {/* Expanded hidden slots */}
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.div
-                key="expanded"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{
-                  height:  { duration: 0.30, ease: [0.16, 1, 0.3, 1] },
-                  opacity: { duration: 0.20, ease: 'easeOut' },
-                }}
-                className="flex flex-col gap-0"
-              >
-                {hiddenSlots.map(time => (
-                  <SlotButton
-                    key={time}
-                    time={time}
-                    onClick={() => onSlotClick?.(time)}
-                  />
-                ))}
-                <CollapseButton onClick={onCollapse} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
+  function handleDayClick(day: number) {
+    const date = toDate(currentYear, currentMonth, day);
+    const key = toDateKey(currentYear, currentMonth, day);
+    const isAvailable = !!availableDatesMap[key]?.length;
+    const isPast = date < today;
 
-      {/* Ghost expand button - absolutely positioned at bottom */}
-      {hasSlots && !isPast && overflowCount > 0 && !isExpanded && (
-        <GhostExpandButton count={overflowCount} onClick={onExpand} />
-      )}
+    if (isPast || !isAvailable) return;
 
-      {/* No slots placeholder */}
-      {(!hasSlots || isPast) && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[10px] text-[#9e8476]/50">—</span>
-        </div>
-      )}
-    </motion.div>
-  );
-}
+    vibrateSelection();
+    setSelectedDate(date);
+    setSelectedTime(null);
+    setShowBookingForm(false);
 
-// ─── Main Calendar ────────────────────────────────────────────────────────────
+    // Scroll to slots
+    setTimeout(() => {
+      calendarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  }
 
-export default function Calendar() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [expandedWeek, setExpandedWeek] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ date: Date; time: string; availableSlots: string[] } | null>(null);
-  const [bookingFormOpen, setBookingFormOpen] = useState(false);
-  const [availableDates, setAvailableDates] = useState<Record<string, string[]>>({});
+  function handleSlotClick(time: string) {
+    if (hasActiveBooking) {
+      alert('Вы уже записаны! Отмените текущую запись, чтобы записаться заново.');
+      return;
+    }
+    vibrateMedium();
+    setSelectedTime(time);
+    setShowBookingForm(true);
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }
 
-  // Загрузка доступных дат из API
-  useEffect(() => {
-    const fetchAvailableDates = async () => {
-      try {
-        const data = await apiClient.getAvailableDates();
-        const formattedData: Record<string, string[]> = {};
+  function handleBookingClose() {
+    setShowBookingForm(false);
+    setSelectedDate(null);
+    setSelectedTime(null);
+    loadDates(true);
+    onBookingCreated?.();
+  }
 
-        data.forEach((item: any) => {
-          if (!item.is_closed) {
-            const date = item.date;
-            const availableSlots = item.slots
-              .filter((slot: any) => slot.available)
-              .map((slot: any) => slot.time);
-            formattedData[date] = availableSlots;
-          }
-        });
+  const selectedDateKey = selectedDate
+    ? toDateKey(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate()
+      )
+    : null;
 
-        setAvailableDates(formattedData);
-      } catch (error) {
-        console.error('Ошибка при загрузке доступных дат:', error);
-      }
-    };
-
-    fetchAvailableDates();
-  }, []);
-
-  const days = getMonthDays(currentMonth);
-
-  const prevMonth = useCallback(() => {
-    vibrateNavigation();
-    setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-    setExpandedWeek(false);
-  }, []);
-
-  const nextMonth = useCallback(() => {
-    vibrateNavigation();
-    setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-    setExpandedWeek(false);
-  }, []);
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft:  nextMonth,
-    onSwipedRight: prevMonth,
-    trackMouse: false,
-    trackTouch: true,
-    delta: 50,
-  });
+  const slotsForSelected = selectedDateKey ? (availableDatesMap[selectedDateKey] || []) : [];
 
   return (
-    <div className="liquid-glass-calendar p-6 w-full" {...swipeHandlers}>
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-4">
-        <NavButton direction="left" onClick={prevMonth} />
-
-        <motion.span
-          key={format(currentMonth, 'yyyy-MM')}
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.20 }}
-          className="text-[#3d2b1f] font-semibold text-base capitalize"
-        >
-          {format(currentMonth, 'LLLL yyyy', { locale: ru })}
-        </motion.span>
-
-        <NavButton direction="right" onClick={nextMonth} />
-      </div>
-
-      {/* ── Days-of-week header ── */}
-      <div className="grid grid-cols-7 mb-2">
-        {DAYS_HEADER.map(day => (
-          <div key={day} className="flex items-center justify-center">
-            <span className="text-[10px] font-semibold text-[#9e8476] uppercase tracking-widest">
-              {day}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Days grid ── */}
-      <motion.div layout className="grid grid-cols-7 gap-1.5">
-        {days.map(date => {
-          const key = format(date, 'yyyy-MM-dd');
-          const slots = availableDates[key] ?? [];
-          return (
-            <DayCard
-              key={key}
-              date={date}
-              slots={slots}
-              isCurrentMonth={isSameMonth(date, currentMonth)}
-              isExpanded={expandedWeek}
-              onExpand={() => setExpandedWeek(true)}
-              onCollapse={() => setExpandedWeek(false)}
-              onSlotClick={time => {
-                vibrateMedium();
-                setSelectedSlot({ date, time, availableSlots: slots });
-                setBookingFormOpen(true);
-              }}
-            />
-          );
-        })}
-      </motion.div>
-
-      {/* Booking Form Modal - рендерится в document.body через Portal */}
-      {bookingFormOpen && selectedSlot &&
-        createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
-            onClick={() => setBookingFormOpen(false)}
+    <div ref={calendarRef} className="space-y-3">
+      {/* ── Calendar Card ── */}
+      <div className="liquid-glass rounded-2xl p-4">
+        {/* Month navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={prevMonth}
+            className="w-9 h-9 flex items-center justify-center rounded-xl liquid-glass-nav
+              text-[#9e8476] hover:text-[#7c5340] transition-colors active:scale-90"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <BookingForm
-                date={selectedSlot.date}
-                time={selectedSlot.time}
-                availableSlots={selectedSlot.availableSlots}
-                onTimeChange={(newTime) => setSelectedSlot({ ...selectedSlot, time: newTime })}
-                onClose={() => setBookingFormOpen(false)}
-              />
-            </motion.div>
-          </motion.div>,
-          document.body
-        )
-      }
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-[#3d2b1f]">
+              {MONTH_NAMES[currentMonth]} {currentYear}
+            </h2>
+            {isRefreshing && (
+              <div className="w-3.5 h-3.5 border-2 border-[#c4967a]/30 border-t-[#c4967a] rounded-full spinner" />
+            )}
+          </div>
+
+          <button
+            onClick={nextMonth}
+            className="w-9 h-9 flex items-center justify-center rounded-xl liquid-glass-nav
+              text-[#9e8476] hover:text-[#7c5340] transition-colors active:scale-90"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* Day headers */}
+        <div className="grid grid-cols-7 mb-2">
+          {DAY_NAMES.map((d) => (
+            <div key={d} className="text-center text-[10px] font-medium text-[#9e8476] py-1">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-40">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-[#c4967a]/30 border-t-[#c4967a] rounded-full spinner mx-auto mb-2" />
+              <p className="text-xs text-[#9e8476]">Загрузка...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-7 gap-0.5">
+            {/* Empty cells for offset */}
+            {Array.from({ length: startOffset }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+
+            {/* Day cells */}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const date = toDate(currentYear, currentMonth, day);
+              const key = toDateKey(currentYear, currentMonth, day);
+              const isPast = date < today;
+              const isToday = date.getTime() === today.getTime();
+              const hasSlots = !!availableDatesMap[key]?.length;
+              const isSelected =
+                selectedDate?.getTime() === date.getTime();
+
+              let cellClass = 'day-cell w-full aspect-square flex flex-col items-center justify-center text-sm rounded-xl ';
+
+              if (isSelected) {
+                cellClass += 'selected ';
+              } else if (isPast) {
+                cellClass += 'disabled ';
+              } else if (!hasSlots) {
+                cellClass += 'disabled ';
+              } else {
+                cellClass += 'available ';
+                if (isToday) cellClass += 'today ';
+              }
+
+              return (
+                <motion.button
+                  key={day}
+                  whileTap={!isPast && hasSlots ? { scale: 0.88 } : {}}
+                  onClick={() => handleDayClick(day)}
+                  disabled={isPast || !hasSlots}
+                  className={cellClass}
+                >
+                  <span className="text-sm leading-none">{day}</span>
+                  {hasSlots && !isSelected && !isPast && (
+                    <span className="w-1 h-1 rounded-full bg-[#c4967a] mt-0.5 pulse-dot" />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="mt-3 flex items-center gap-4 justify-center">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#c4967a]" />
+            <span className="text-[10px] text-[#9e8476]">Доступные дни</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-4 h-4 rounded-md bg-gradient-to-br from-[#c4967a] to-[#b0856a]" />
+            <span className="text-[10px] text-[#9e8476]">Выбранный день</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Time Slots ── */}
+      <AnimatePresence>
+        {selectedDate && (
+          <motion.div
+            key="slots"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="liquid-glass rounded-2xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-[#3d2b1f]">
+                {selectedDate.toLocaleDateString('ru-RU', {
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </p>
+              <button
+                onClick={() => loadDates(true)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg liquid-glass-nav
+                  text-[#9e8476] transition-colors active:scale-90"
+              >
+                <RefreshCw size={13} className={isRefreshing ? 'spinner' : ''} />
+              </button>
+            </div>
+
+            {slotsForSelected.length === 0 ? (
+              <p className="text-sm text-[#9e8476] text-center py-3">
+                Нет доступных слотов
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {slotsForSelected.map((time) => (
+                  <motion.button
+                    key={time}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={() => handleSlotClick(time)}
+                    className={`slot-btn py-2.5 rounded-xl text-sm font-medium ${
+                      selectedTime === time ? 'selected' : ''
+                    }`}
+                  >
+                    {time}
+                  </motion.button>
+                ))}
+              </div>
+            )}
+
+            {hasActiveBooking && (
+              <p className="text-xs text-amber-600 text-center mt-3 bg-amber-50/60 rounded-lg p-2">
+                ⚠️ Вы уже записаны. Отмените текущую запись для новой записи.
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Booking Form ── */}
+      <AnimatePresence>
+        {showBookingForm && selectedDate && selectedTime && (
+          <motion.div
+            ref={formRef}
+            key="booking-form"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.30, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <BookingForm
+              date={selectedDate}
+              time={selectedTime}
+              availableSlots={slotsForSelected}
+              onTimeChange={(t) => {
+                vibrateSelection();
+                setSelectedTime(t);
+              }}
+              onClose={handleBookingClose}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
