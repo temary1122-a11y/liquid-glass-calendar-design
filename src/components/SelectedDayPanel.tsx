@@ -96,6 +96,9 @@ function SelectedDayPanel({
     });
 
     console.log('onUpdateClient result:', result);
+    console.log('result.success:', result.success);
+    console.log('result.data:', result.data);
+    console.log('result.message:', result.message);
 
     if (result.success) {
       vibrateSuccess();
@@ -104,8 +107,10 @@ function SelectedDayPanel({
 
       // Check if we need to open chat with client
       console.log('Checking for open_chat data:', result.data);
+      console.log('result.data?.type:', result.data?.type);
+      console.log('result.data?.username:', result.data?.username);
       if (result.data && result.data.type === 'open_chat') {
-        console.log('Opening chat with username:', result.data.username);
+        console.log('✅ Opening chat with username:', result.data.username);
         const tg = window.Telegram?.WebApp;
         const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
         console.log('Telegram URL:', telegramUrl);
@@ -115,7 +120,8 @@ function SelectedDayPanel({
           window.open(telegramUrl, '_blank');
         }
       } else {
-        console.log('No open_chat data or missing username');
+        console.log('❌ No open_chat data or missing username');
+        console.log('Full result.data:', JSON.stringify(result.data, null, 2));
       }
     } else {
       vibrateError();

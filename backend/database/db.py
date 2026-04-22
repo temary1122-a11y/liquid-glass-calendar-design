@@ -90,4 +90,7 @@ def get_db():
 
 def init_db():
     """Create all tables if they don't exist."""
+    print("[database] Initializing database...")
+    print("[database] Tables to create:", [table.name for table in Base.metadata.sorted_tables])
     Base.metadata.create_all(bind=engine)
+    print("[database] Database initialized successfully")

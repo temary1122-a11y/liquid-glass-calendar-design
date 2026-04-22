@@ -372,6 +372,7 @@ async def update_client(
             slot.is_booked = True
             db.add(booking)
             old_status = None
+            print(f"[admin] Created new booking: username={booking.username}, status={booking.status}")
         else:
             # Если booking существует - обновляем
             old_status = booking.status
@@ -381,6 +382,7 @@ async def update_client(
             booking.note = request.note
             if request.status:
                 booking.status = request.status
+            print(f"[admin] Updated booking: username={booking.username}, old_status={old_status}, new_status={booking.status}")
 
         db.commit()
 
@@ -391,8 +393,11 @@ async def update_client(
             }
         )
 
+        print(f"[admin] Chat opening check: old_status={old_status}, request.status={request.status}, booking.username={booking.username}")
+        print(f"[admin] Condition check: old_status != 'confirmed' = {old_status != 'confirmed'}, request.status == 'confirmed' = {request.status == 'confirmed'}, booking.username = {booking.username}")
+
         if old_status != "confirmed" and request.status == "confirmed" and booking.username:
-            print(f"[admin] Opening chat with client: username={booking.username}, old_status={old_status}")
+            print(f"[admin] ✅ Opening chat with client: username={booking.username}, old_status={old_status}")
             return SuccessResponse(
                 success=True,
                 message="Запись обновлена",
@@ -409,7 +414,7 @@ async def update_client(
                 },
             )
         else:
-            print(f"[admin] Not opening chat: old_status={old_status}, request.status={request.status}, username={booking.username}")
+            print(f"[admin] ❌ Not opening chat: old_status={old_status}, request.status={request.status}, username={booking.username}")
             return SuccessResponse(success=True, message="Запись обновлена")
     except Exception as exc:
         db.rollback()
