@@ -98,10 +98,9 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
         relative rounded-3xl p-2 min-h-[64px] w-full text-left
         liquid-glass-calendar transition-all duration-200
         ${isPast ? 'opacity-40' : ''}
-        ${isSelected ? 'bg-[#c4967a]/20 border-2 border-[#c4967a] shadow-lg shadow-[#c4967a]/30' : ''}
+        ${isSelected ? 'selected' : ''}
         ${isToday_ && !isSelected ? 'border border-[#2e7d5e]/40' : ''}
       `}
-      style={isSelected ? { borderColor: '#c4967a !important', borderWidth: '2px !important' } : undefined}
     >
       {/* Day number */}
       <span className={`

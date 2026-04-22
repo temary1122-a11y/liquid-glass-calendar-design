@@ -89,6 +89,12 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.70);
 }
 
+.liquid-glass-calendar.selected {
+  background: rgba(196, 150, 122, 0.20) !important;
+  border: 2px solid #c4967a !important;
+  box-shadow: 0 10px 25px rgba(196, 150, 122, 0.30) !important;
+}
+
 .liquid-glass-input {
   background: rgba(255, 255, 255, 0.60);
   border: 1.5px solid rgba(255, 255, 255, 0.70);
