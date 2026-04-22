@@ -330,7 +330,7 @@ function SelectedDayPanel({
                     </div>
                   </div>
                 ) : (
-                  <motion.button
+                  <div
                     onClick={() => {
                       if (!isBooked || client.status === 'confirmed') {
                         handleEdit(slot.time);
@@ -474,7 +474,7 @@ function SelectedDayPanel({
                         </>
                       )}
                     </div>
-                  </motion.button>
+                  </div>
                 )}
               </div>
             );
