@@ -390,13 +390,13 @@ async def update_client(
             }
         )
 
-        if old_status != "confirmed" and request.status == "confirmed" and booking.user_id:
+        if old_status != "confirmed" and request.status == "confirmed" and booking.username:
             return SuccessResponse(
                 success=True,
                 message="Запись обновлена",
                 data={
                     "type": "open_chat",
-                    "user_id": booking.user_id,
+                    "username": booking.username,
                     "text": (
                         f"✅ <b>Записала</b>\n\n"
                         f"📅 Дата: {booking.day_date}\n"

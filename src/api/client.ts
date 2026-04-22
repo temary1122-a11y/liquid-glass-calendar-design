@@ -274,7 +274,7 @@ class ApiClient {
     username?: string;
     note?: string;
     status?: string;
-  }): Promise<{ success: boolean; message: string; data?: { type: string; user_id: number; text: string } }> {
+  }): Promise<{ success: boolean; message: string; data?: { type: string; username: string; text: string } }> {
     try {
       const res = await fetch(`${this.baseUrl}/api/admin/update-client`, {
         method: 'POST',

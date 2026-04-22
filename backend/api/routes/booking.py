@@ -139,6 +139,22 @@ async def create_booking(
     if not slot:
         return BookingResponse(success=False, message="Слот не доступен или уже занят")
 
+    # Check for existing active booking for this user
+    if booking.user_id:
+        existing_booking = (
+            db.query(Booking)
+            .filter(
+                Booking.user_id == booking.user_id,
+                Booking.status.notin_(["cancelled", "completed"]),
+            )
+            .first()
+        )
+        if existing_booking:
+            return BookingResponse(
+                success=False,
+                message="У вас уже есть активная запись. Отмените её перед созданием новой."
+            )
+
     new_booking = Booking(
         day_date=booking.date,
         slot_time=booking.time,

@@ -20,7 +20,7 @@ interface SelectedDayPanelProps {
     username?: string;
     note?: string;
     status?: string;
-  }) => Promise<{ success: boolean; message?: string; data?: { type: string; user_id: number; text: string } }>;
+  }) => Promise<{ success: boolean; message?: string; data?: { type: string; username: string; text: string } }>;
   onDeleteClient: (time: string) => Promise<{ success: boolean; message?: string }>;
   onRefresh: () => void;
 }
@@ -103,9 +103,9 @@ function SelectedDayPanel({
       onRefresh();
 
       // Check if we need to open chat with client
-      if (result.data && result.data.type === 'open_chat' && result.data.user_id) {
+      if (result.data && result.data.type === 'open_chat' && result.data.username) {
         const tg = window.Telegram?.WebApp;
-        const telegramUrl = `https://t.me/${result.data.user_id}?text=${encodeURIComponent(result.data.text)}`;
+        const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
         if (tg) {
           tg.openTelegramLink(telegramUrl);
         } else {

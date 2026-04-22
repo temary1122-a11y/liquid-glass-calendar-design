@@ -105,14 +105,12 @@ async def _show_booking(message: types.Message, user_id: int) -> None:
             )
             return
 
-        slot = booking.slot
-        work_day = slot.work_day if slot else None
         status_text = STATUS_EMOJI.get(booking.status, booking.status)
 
         text = (
             f"📋 <b>Ваша запись</b>\n\n"
-            f"📅 Дата: <b>{work_day.day_date if work_day else '—'}</b>\n"
-            f"🕐 Время: <b>{slot.time if slot else '—'}</b>\n"
+            f"📅 Дата: <b>{booking.day_date}</b>\n"
+            f"🕐 Время: <b>{booking.slot_time}</b>\n"
             f"📍 Адрес: <b>Тихий переулок, 4</b>\n"
             f"👤 Имя: {booking.client_name}\n"
             f"📞 Телефон: {booking.phone or '—'}\n\n"
@@ -156,20 +154,17 @@ async def cb_cancel_booking(callback: types.CallbackQuery, state: FSMContext) ->
             )
             return
 
-        slot = booking.slot
-        work_day = slot.work_day if slot else None
-
         await state.set_state(CancelState.waiting_for_reason)
         await state.update_data(
             booking_id=booking.id,
-            day_date=work_day.day_date if work_day else "—",
-            slot_time=slot.time if slot else "—",
+            day_date=booking.day_date,
+            slot_time=booking.slot_time,
         )
 
         await callback.message.answer(
             f"📅 <b>Ваша запись:</b>\n\n"
-            f"📆 Дата: {work_day.day_date if work_day else '—'}\n"
-            f"⏰ Время: {slot.time if slot else '—'}\n\n"
+            f"📆 Дата: {booking.day_date}\n"
+            f"⏰ Время: {booking.slot_time}\n\n"
             f"❓ <b>Почему хотите отменить?</b>\n"
             f"Напишите причину отмены:",
             parse_mode="HTML",
@@ -201,14 +196,11 @@ async def cmd_cancel(message: types.Message, state: FSMContext) -> None:
             )
             return
 
-        slot = booking.slot
-        work_day = slot.work_day if slot else None
-
         await state.set_state(CancelState.waiting_for_reason)
         await state.update_data(
             booking_id=booking.id,
-            day_date=work_day.day_date if work_day else "—",
-            slot_time=slot.time if slot else "—",
+            day_date=booking.day_date,
+            slot_time=booking.slot_time,
             client_name=booking.client_name,
         )
 
