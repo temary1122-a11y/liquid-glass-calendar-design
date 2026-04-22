@@ -19,6 +19,7 @@ interface SelectedDayPanelProps {
     time: string;
     username?: string;
     note?: string;
+    status?: string;
   }) => Promise<{ success: boolean; message?: string }>;
   onDeleteClient: (time: string) => Promise<{ success: boolean; message?: string }>;
   onRefresh: () => void;
@@ -341,7 +342,18 @@ function SelectedDayPanel({
                             {client.client_name[0]}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[#3d2b1f] text-sm font-semibold leading-tight truncate">{client.client_name}</p>
+                            {client.username ? (
+                              <a
+                                href={`https://t.me/${client.username}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#3d2b1f] text-sm font-semibold leading-tight truncate hover:underline hover:text-[#c4967a] transition-colors"
+                              >
+                                {client.client_name}
+                              </a>
+                            ) : (
+                              <p className="text-[#3d2b1f] text-sm font-semibold leading-tight truncate">{client.client_name}</p>
+                            )}
                             <div className="flex items-center gap-2 mt-0.5">
                               <p className="text-[#9e8476] text-xs">{slot.time}</p>
                               {client.username && (
@@ -353,6 +365,12 @@ function SelectedDayPanel({
                                 >
                                   @{client.username}
                                 </a>
+                              )}
+                              {client.status === 'pending' && (
+                                <span className="text-[10px] text-[#ef4444] font-medium">Ожидает</span>
+                              )}
+                              {client.status === 'confirmed' && (
+                                <span className="text-[10px] text-[#2e7d5e] font-medium">Подтвержден</span>
                               )}
                             </div>
                           </div>
@@ -368,6 +386,51 @@ function SelectedDayPanel({
                     <div className="flex items-center gap-1">
                       {isBooked ? (
                         <>
+                          {client.status === 'pending' && (
+                            <>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={async () => {
+                                  const dateStr = format(date, 'yyyy-MM-dd');
+                                  const result = await onUpdateClient({
+                                    name: client.client_name,
+                                    phone: client.phone,
+                                    date: dateStr,
+                                    time: slot.time,
+                                    username: client.username,
+                                    note: client.note,
+                                    status: 'confirmed'
+                                  });
+                                  if (result.success) {
+                                    vibrateSuccess();
+                                    onRefresh();
+                                  } else {
+                                    vibrateError();
+                                  }
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-[#2e7d5e] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                              >
+                                Подтвердить
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={async () => {
+                                  const result = await onDeleteClient(slot.time);
+                                  if (result.success) {
+                                    vibrateSuccess();
+                                    onRefresh();
+                                  } else {
+                                    vibrateError();
+                                  }
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-[#ef4444] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                              >
+                                Отклонить
+                              </motion.button>
+                            </>
+                          )}
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}

@@ -365,22 +365,36 @@ export default function AdminSchedulePanel() {
                         time: s.time,
                         booking: s.booking!
                       }))
-                  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((booking) => (
-                    <div key={`${booking.date}-${booking.time}`} className="p-3 bg-white/30 rounded-xl">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-[#3d2b1f]">{booking.booking.client_name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          booking.booking.status === 'confirmed'
-                            ? 'badge-confirmed'
-                            : 'badge-pending'
-                        }`}>
-                          {booking.booking.status === 'confirmed' ? 'Подтверждена' : 'Ожидает'}
-                        </span>
+                  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((booking) => {
+                    const dateObj = new Date(booking.date);
+                    return (
+                      <div key={`${booking.date}-${booking.time}`} className="p-3 bg-white/30 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          {booking.booking.username ? (
+                            <a
+                              href={`https://t.me/${booking.booking.username}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-[#3d2b1f] hover:underline hover:text-[#c4967a] transition-colors"
+                            >
+                              {booking.booking.client_name}
+                            </a>
+                          ) : (
+                            <p className="text-sm font-medium text-[#3d2b1f]">{booking.booking.client_name}</p>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            booking.booking.status === 'confirmed'
+                              ? 'badge-confirmed'
+                              : 'badge-pending'
+                          }`}>
+                            {booking.booking.status === 'confirmed' ? 'Подтверждена' : 'Ожидает'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#9e8476]">{format(dateObj, 'd MMMM HH:mm', { locale: ru })}</p>
+                        {booking.booking.phone && <p className="text-xs text-[#9e8476] mt-1">{booking.booking.phone}</p>}
                       </div>
-                      <p className="text-xs text-[#9e8476]">{booking.date} в {booking.time}</p>
-                      {booking.booking.phone && <p className="text-xs text-[#9e8476] mt-1">{booking.booking.phone}</p>}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -399,13 +413,26 @@ export default function AdminSchedulePanel() {
                         time: s.time,
                         booking: s.booking!
                       }))
-                  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((booking) => (
-                    <div key={`${booking.date}-${booking.time}`} className="flex items-center justify-between p-3 bg-white/30 rounded-xl">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-[#3d2b1f]">{booking.booking.client_name}</p>
-                        <p className="text-xs text-[#9e8476]">{booking.date} в {booking.time}</p>
-                      </div>
-                      <div className="flex gap-2">
+                  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((booking) => {
+                    const dateObj = new Date(booking.date);
+                    return (
+                      <div key={`${booking.date}-${booking.time}`} className="flex items-center justify-between p-3 bg-white/30 rounded-xl">
+                        <div className="flex-1">
+                          {booking.booking.username ? (
+                            <a
+                              href={`https://t.me/${booking.booking.username}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-[#3d2b1f] hover:underline hover:text-[#c4967a] transition-colors"
+                            >
+                              {booking.booking.client_name}
+                            </a>
+                          ) : (
+                            <p className="text-sm font-medium text-[#3d2b1f]">{booking.booking.client_name}</p>
+                          )}
+                          <p className="text-xs text-[#9e8476]">{format(dateObj, 'd MMMM HH:mm', { locale: ru })}</p>
+                        </div>
+                        <div className="flex gap-2">
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
@@ -439,7 +466,8 @@ export default function AdminSchedulePanel() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
