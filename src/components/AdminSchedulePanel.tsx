@@ -228,7 +228,7 @@ export default function AdminSchedulePanel() {
               : 'liquid-glass-nav text-[#7c5340]'
           }`}
         >
-          📁 Архив
+          Записи
         </motion.button>
       </div>
 
@@ -323,7 +323,7 @@ export default function AdminSchedulePanel() {
         </AnimatePresence>
       )}
 
-      {/* ── Archive Tab ── */}
+      {/* ── Bookings Tab ── */}
       {activeTab === 'clients' && (
         <AnimatePresence mode="wait">
           <motion.div
@@ -334,6 +334,106 @@ export default function AdminSchedulePanel() {
             transition={{ duration: 0.15 }}
             className="space-y-4"
           >
+            {/* Active bookings */}
+            <div className="liquid-glass rounded-2xl p-4">
+              <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3">Активные записи</h3>
+              {Object.values(workDays).flatMap(day =>
+                day.slots.filter(s => s.is_booked && s.booking && ['pending', 'confirmed'].includes(s.booking.status))
+                  .map(s => ({
+                    date: day.day_date,
+                    time: s.time,
+                    booking: s.booking!
+                  }))
+              ).length === 0 ? (
+                <p className="text-xs text-[#9e8476]">Нет активных записей</p>
+              ) : (
+                <div className="space-y-2">
+                  {Object.values(workDays).flatMap(day =>
+                    day.slots.filter(s => s.is_booked && s.booking && ['pending', 'confirmed'].includes(s.booking.status))
+                      .map(s => ({
+                        date: day.day_date,
+                        time: s.time,
+                        booking: s.booking!
+                      }))
+                  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((booking) => (
+                    <div key={`${booking.date}-${booking.time}`} className="p-3 bg-white/30 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-[#3d2b1f]">{booking.booking.client_name}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          booking.booking.status === 'confirmed'
+                            ? 'badge-confirmed'
+                            : 'badge-pending'
+                        }`}>
+                          {booking.booking.status === 'confirmed' ? 'Подтверждена' : 'Ожидает'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#9e8476]">{booking.date} в {booking.time}</p>
+                      {booking.booking.phone && <p className="text-xs text-[#9e8476] mt-1">{booking.booking.phone}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pending confirmations */}
+            {Object.values(workDays).flatMap(day =>
+              day.slots.filter(s => s.is_booked && s.booking && s.booking.status === 'pending')
+            ).length > 0 && (
+              <div className="liquid-glass rounded-2xl p-4">
+                <h3 className="text-sm font-semibold text-[#3d2b1f] mb-3">Требующие подтверждения</h3>
+                <div className="space-y-2">
+                  {Object.values(workDays).flatMap(day =>
+                    day.slots.filter(s => s.is_booked && s.booking && s.booking.status === 'pending')
+                      .map(s => ({
+                        date: day.day_date,
+                        time: s.time,
+                        booking: s.booking!
+                      }))
+                  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((booking) => (
+                    <div key={`${booking.date}-${booking.time}`} className="flex items-center justify-between p-3 bg-white/30 rounded-xl">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-[#3d2b1f]">{booking.booking.client_name}</p>
+                        <p className="text-xs text-[#9e8476]">{booking.date} в {booking.time}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const result = await apiClient.updateClient({
+                              name: booking.booking.client_name,
+                              phone: booking.booking.phone,
+                              date: booking.date,
+                              time: booking.time,
+                              username: booking.booking.username,
+                              note: booking.booking.note,
+                              status: 'confirmed'
+                            });
+                            if (result.success) {
+                              loadData();
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#2e7d5e] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                        >
+                          Подтвердить
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const result = await apiClient.deleteClient(booking.date, booking.time);
+                            if (result.success) {
+                              loadData();
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#ef4444] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                        >
+                          Отклонить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Archive button */}
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -342,10 +442,10 @@ export default function AdminSchedulePanel() {
                 setArchiveOpen(true);
                 await loadArchive();
               }}
-              className="w-full liquid-glass rounded-2xl p-6 text-left"
+              className="w-full liquid-glass rounded-2xl p-4 text-left"
             >
-              <div className="flex items-center gap-4">
-                <div className="text-3xl">📁</div>
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">📁</div>
                 <div>
                   <h3 className="text-sm font-semibold text-[#3d2b1f]">Архив записей</h3>
                   <p className="text-xs text-[#9e8476] mt-0.5">Завершенные и отмененные записи</p>
