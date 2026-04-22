@@ -27,9 +27,6 @@ export default function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const isAdminParam = urlParams.get('admin') === 'true';
-    // Temporarily force admin for testing
-    setIsAdmin(true);
-    setView('admin');
 
     const tg = window.Telegram?.WebApp;
 
@@ -42,6 +39,14 @@ export default function App() {
 
     if (user) {
       setUserId(user.id);
+      // Check if user is admin
+      const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
+      setIsAdmin(user.id === adminId);
+      
+      // Only set admin view if user is admin OR admin param is true (for testing)
+      if (isAdminParam || user.id === adminId) {
+        setView('admin');
+      }
     }
   }, []);
 
