@@ -55,6 +55,12 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
                     callback_data="my_booking",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Отменить запись",
+                    callback_data="cancel_booking",
+                )
+            ],
         ]
     )
 
@@ -126,6 +132,48 @@ async def cmd_mybooking(message: types.Message) -> None:
 async def cb_my_booking(callback: types.CallbackQuery) -> None:
     await callback.answer()
     await _show_booking(callback.message, callback.from_user.id)
+
+
+@router.callback_query(F.data == "cancel_booking")
+async def cb_cancel_booking(callback: types.CallbackQuery, state: FSMContext) -> None:
+    """Callback handler для кнопки отмены записи."""
+    await callback.answer()
+    # Переиспользуем логику cmd_cancel
+    with SessionLocal() as db:
+        booking: Booking | None = (
+            db.query(Booking)
+            .filter(
+                Booking.user_id == callback.from_user.id,
+                Booking.status.notin_(["cancelled", "completed"]),
+            )
+            .first()
+        )
+
+        if not booking:
+            await callback.message.answer(
+                "📭 У вас нет активных записей для отмены.\n\n"
+                "Используйте /start чтобы записаться."
+            )
+            return
+
+        slot = booking.slot
+        work_day = slot.work_day if slot else None
+
+        await state.set_state(CancelState.waiting_for_reason)
+        await state.update_data(
+            booking_id=booking.id,
+            day_date=work_day.day_date if work_day else "—",
+            slot_time=slot.time if slot else "—",
+        )
+
+        await callback.message.answer(
+            f"📅 <b>Ваша запись:</b>\n\n"
+            f"📆 Дата: {work_day.day_date if work_day else '—'}\n"
+            f"⏰ Время: {slot.time if slot else '—'}\n\n"
+            f"❓ <b>Почему хотите отменить?</b>\n"
+            f"Напишите причину отмены:",
+            parse_mode="HTML",
+        )
 
 
 # ---------------------------------------------------------------------------
