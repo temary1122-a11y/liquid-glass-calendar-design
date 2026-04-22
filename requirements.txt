@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+aiogram
+sqlalchemy
+asyncpg
+psycopg2-binary
+aiosqlite
+python-dotenv
+slowapi
+apscheduler
+pydantic
+pydantic-settings
+websockets
+httpx
