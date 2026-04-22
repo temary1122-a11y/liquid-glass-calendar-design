@@ -243,7 +243,7 @@ export default function AdminSchedulePanel() {
             transition={{ duration: 0.15 }}
           >
       {/* ── Calendar Grid ── */}
-      <div className="liquid-glass-calendar p-3" {...swipeHandlers}>
+      <div className="liquid-glass-calendar p-3 rounded-2xl" {...swipeHandlers}>
         {/* Month navigation */}
         <div className="flex items-center justify-between mb-3">
           <NavButton direction="left" onClick={goToPrevMonth} />
@@ -292,6 +292,7 @@ export default function AdminSchedulePanel() {
       </div>
 
       {/* ── Selected Day Panel ── */}
+      <div className="mt-4">
       <AnimatePresence>
         {selectedDate && (
           <SelectedDayPanel
@@ -319,6 +320,7 @@ export default function AdminSchedulePanel() {
           />
         )}
       </AnimatePresence>
+      </div>
           </motion.div>
         </AnimatePresence>
       )}
