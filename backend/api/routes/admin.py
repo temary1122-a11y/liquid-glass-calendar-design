@@ -392,6 +392,7 @@ async def update_client(
         )
 
         if old_status != "confirmed" and request.status == "confirmed" and booking.username:
+            print(f"[admin] Opening chat with client: username={booking.username}, old_status={old_status}")
             return SuccessResponse(
                 success=True,
                 message="Запись обновлена",
@@ -408,6 +409,7 @@ async def update_client(
                 },
             )
         else:
+            print(f"[admin] Not opening chat: old_status={old_status}, request.status={request.status}, username={booking.username}")
             return SuccessResponse(success=True, message="Запись обновлена")
     except Exception as exc:
         db.rollback()

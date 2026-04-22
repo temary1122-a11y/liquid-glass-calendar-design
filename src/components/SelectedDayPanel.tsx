@@ -103,14 +103,19 @@ function SelectedDayPanel({
       onRefresh();
 
       // Check if we need to open chat with client
-      if (result.data && result.data.type === 'open_chat' && result.data.username) {
+      console.log('Checking for open_chat data:', result.data);
+      if (result.data && result.data.type === 'open_chat') {
+        console.log('Opening chat with username:', result.data.username);
         const tg = window.Telegram?.WebApp;
         const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
+        console.log('Telegram URL:', telegramUrl);
         if (tg) {
           tg.openTelegramLink(telegramUrl);
         } else {
           window.open(telegramUrl, '_blank');
         }
+      } else {
+        console.log('No open_chat data or missing username');
       }
     } else {
       vibrateError();
