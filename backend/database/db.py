@@ -1,10 +1,9 @@
 import os
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Boolean,
-    DateTime, Text, ForeignKey, UniqueConstraint, Index
+    create_engine, Column, Integer, String, Text, UniqueConstraint, Index
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./lashes.db")
@@ -24,36 +23,19 @@ class WorkDay(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     day_date = Column(String(10), unique=True, nullable=False)  # YYYY-MM-DD
-    is_closed = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    slots = relationship(
-        "TimeSlot",
-        back_populates="work_day",
-        cascade="all, delete-orphan",
-        order_by="TimeSlot.time",
-    )
+    is_closed = Column(Integer, default=0)  # 0 = False, 1 = True (Supabase uses integer)
 
 
 class TimeSlot(Base):
     __tablename__ = "time_slots"
 
     id = Column(Integer, primary_key=True, index=True)
-    day_id = Column(Integer, ForeignKey("work_days.id", ondelete="CASCADE"))
-    time = Column(String(5), nullable=False)  # HH:MM
-    is_booked = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    work_day = relationship("WorkDay", back_populates="slots")
-    booking = relationship(
-        "Booking",
-        back_populates="slot",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
+    day_date = Column(String(10), nullable=False)  # YYYY-MM-DD (Supabase: text field)
+    slot_time = Column(String(5), nullable=False)  # HH:MM (renamed from time)
+    is_booked = Column(Integer, default=0)  # 0 = False, 1 = True (Supabase uses integer)
 
     __table_args__ = (
-        UniqueConstraint("day_id", "time", name="unique_day_time"),
+        UniqueConstraint("day_date", "slot_time", name="unique_day_time"),
     )
 
 
@@ -61,20 +43,19 @@ class Booking(Base):
     __tablename__ = "bookings"
 
     id = Column(Integer, primary_key=True, index=True)
-    slot_id = Column(
-        Integer, ForeignKey("time_slots.id", ondelete="CASCADE"), unique=True
-    )
     user_id = Column(Integer, nullable=True)
     username = Column(String(255), nullable=True)
     client_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
+    day_date = Column(String(10), nullable=False)  # YYYY-MM-DD (Supabase: direct field)
+    slot_time = Column(String(5), nullable=False)  # HH:MM (Supabase: direct field)
     status = Column(String(20), default="pending")  # pending, confirmed, cancelled, completed
     note = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    cancelled_at = Column(DateTime, nullable=True)
-    cancellation_reason = Column(Text, nullable=True)
-
-    slot = relationship("TimeSlot", back_populates="booking")
+    created_at = Column(String, nullable=False)  # ISO format string (Supabase: text)
+    is_cancelled = Column(Integer, default=0)  # 0 = False, 1 = True (Supabase field)
+    cancel_reason = Column(Text, nullable=True)  # renamed from cancellation_reason
+    cancelled_at = Column(String, nullable=True)  # ISO format string (Supabase: text)
+    service_id = Column(String(50), nullable=True)  # NEW field (Supabase has it)
 
     __table_args__ = (
         Index("idx_bookings_user_id", "user_id"),

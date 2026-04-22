@@ -138,28 +138,36 @@ async def get_work_days_with_bookings(
 
     result: Dict[str, AdminWorkDay] = {}
     for wd in work_days:
-        slots: List[AdminSlot] = []
-        for slot in wd.slots:
+        # Load slots manually (no relationship)
+        slots = db.query(TimeSlot).filter(TimeSlot.day_date == wd.day_date).all()
+        
+        admin_slots: List[AdminSlot] = []
+        for slot in slots:
+            # Load booking manually (no relationship)
+            booking = db.query(Booking).filter(
+                Booking.day_date == slot.day_date,
+                Booking.slot_time == slot.slot_time
+            ).first()
+            
             booking_data: Optional[AdminBooking] = None
-            if slot.booking:
-                b = slot.booking
+            if booking:
                 booking_data = AdminBooking(
-                    id=b.id,
-                    client_name=b.client_name,
-                    phone=b.phone,
-                    username=b.username,
-                    user_id=b.user_id,
-                    note=b.note,
-                    status=b.status,
+                    id=booking.id,
+                    client_name=booking.client_name,
+                    phone=booking.phone,
+                    username=booking.username,
+                    user_id=booking.user_id,
+                    note=booking.note,
+                    status=booking.status,
                 )
-            slots.append(
-                AdminSlot(time=slot.time, is_booked=slot.is_booked, booking=booking_data)
+            admin_slots.append(
+                AdminSlot(time=slot.slot_time, is_booked=slot.is_booked == 1, booking=booking_data)
             )
 
         result[wd.day_date] = AdminWorkDay(
             day_date=wd.day_date,
-            is_closed=wd.is_closed,
-            slots=slots,
+            is_closed=wd.is_closed == 1,  # Integer to Boolean
+            slots=admin_slots,
         )
 
     return result
@@ -177,15 +185,14 @@ async def add_work_day(
         return SuccessResponse(success=False, message="Рабочий день уже существует")
 
     try:
-        new_wd = WorkDay(day_date=request.date, is_closed=False)
+        new_wd = WorkDay(day_date=request.date, is_closed=0)  # Integer
         db.add(new_wd)
-        db.flush()  # get new_wd.id without committing
+        db.commit()
 
         if request.time_slots:
             for t in request.time_slots:
-                db.add(TimeSlot(day_id=new_wd.id, time=t))
-
-        db.commit()
+                db.add(TimeSlot(day_date=request.date, slot_time=t, is_booked=0))
+            db.commit()
 
         await ws_manager.broadcast(
             {"type": "work_day_added", "data": {"date": request.date}}
@@ -209,14 +216,14 @@ async def add_time_slot(
         return SuccessResponse(success=False, message="Рабочий день не найден")
 
     existing = db.query(TimeSlot).filter(
-        TimeSlot.day_id == work_day.id,
-        TimeSlot.time == request.time,
+        TimeSlot.day_date == request.date,
+        TimeSlot.slot_time == request.time,
     ).first()
     if existing:
         return SuccessResponse(success=False, message="Слот уже существует")
 
     try:
-        db.add(TimeSlot(day_id=work_day.id, time=request.time))
+        db.add(TimeSlot(day_date=request.date, slot_time=request.time, is_booked=0))
         db.commit()
 
         await ws_manager.broadcast(
@@ -244,8 +251,8 @@ async def delete_time_slot(
         return SuccessResponse(success=False, message="Рабочий день не найден")
 
     slot = db.query(TimeSlot).filter(
-        TimeSlot.day_id == work_day.id,
-        TimeSlot.time == request.time,
+        TimeSlot.day_date == request.date,
+        TimeSlot.slot_time == request.time,
     ).first()
 
     if not slot:
@@ -280,9 +287,9 @@ async def create_client(
         return SuccessResponse(success=False, message="Рабочий день не найден")
 
     slot = db.query(TimeSlot).filter(
-        TimeSlot.day_id == work_day.id,
-        TimeSlot.time == request.time,
-        TimeSlot.is_booked == False,  # noqa: E712
+        TimeSlot.day_date == request.date,
+        TimeSlot.slot_time == request.time,
+        TimeSlot.is_booked == 0,  # noqa: E712
     ).first()
 
     if not slot:
@@ -290,16 +297,18 @@ async def create_client(
 
     try:
         booking = Booking(
-            slot_id=slot.id,
+            day_date=request.date,
+            slot_time=request.time,
             user_id=request.user_id,
             username=request.username,
             client_name=request.name,
             phone=request.phone,
             note=request.note,
             status="confirmed",  # admin-created bookings are confirmed immediately
+            created_at=datetime.utcnow().isoformat(),  # ISO format string
         )
         db.add(booking)
-        slot.is_booked = True
+        slot.is_booked = 1  # Integer
         db.commit()
         db.refresh(booking)
 
@@ -334,20 +343,26 @@ async def update_client(
         return SuccessResponse(success=False, message="Рабочий день не найден")
 
     slot = db.query(TimeSlot).filter(
-        TimeSlot.day_id == work_day.id,
-        TimeSlot.time == request.time,
+        TimeSlot.day_date == request.date,
+        TimeSlot.slot_time == request.time,
     ).first()
 
-    if not slot or not slot.booking:
+    # Load booking manually (no relationship)
+    booking = db.query(Booking).filter(
+        Booking.day_date == slot.day_date,
+        Booking.slot_time == slot.slot_time
+    ).first()
+
+    if not slot or not booking:
         return SuccessResponse(success=False, message="Запись не найдена")
 
     try:
-        slot.booking.client_name = request.name
-        slot.booking.phone = request.phone
-        slot.booking.username = request.username
-        slot.booking.note = request.note
+        booking.client_name = request.name
+        booking.phone = request.phone
+        booking.username = request.username
+        booking.note = request.note
         if request.status:
-            slot.booking.status = request.status
+            booking.status = request.status
         db.commit()
 
         await ws_manager.broadcast(
@@ -375,17 +390,23 @@ async def delete_client(
         return SuccessResponse(success=False, message="Рабочий день не найден")
 
     slot = db.query(TimeSlot).filter(
-        TimeSlot.day_id == work_day.id,
-        TimeSlot.time == request.time,
+        TimeSlot.day_date == request.date,
+        TimeSlot.slot_time == request.time,
     ).first()
 
     if not slot:
         return SuccessResponse(success=False, message="Слот не найден")
 
+    # Load booking manually (no relationship)
+    booking = db.query(Booking).filter(
+        Booking.day_date == slot.day_date,
+        Booking.slot_time == slot.slot_time
+    ).first()
+
     try:
-        if slot.booking:
-            db.delete(slot.booking)
-        slot.is_booked = False
+        if booking:
+            db.delete(booking)
+        slot.is_booked = 0  # Integer
         db.commit()
 
         await ws_manager.broadcast(

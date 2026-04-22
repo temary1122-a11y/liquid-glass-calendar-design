@@ -81,16 +81,19 @@ async def get_available_dates(db: Session = Depends(get_db)):
         if wd_date < today:
             continue
 
+        # Load slots manually (no relationship)
+        slots = db.query(TimeSlot).filter(TimeSlot.day_date == wd.day_date).all()
+        
         available_slots = [
-            TimeSlotResponse(time=slot.time, available=True)
-            for slot in wd.slots
-            if not slot.is_booked
+            TimeSlotResponse(time=slot.slot_time, available=True)
+            for slot in slots
+            if slot.is_booked == 0
         ]
 
         # Include day even if all slots are booked (frontend decides what to show)
         all_slots = [
-            TimeSlotResponse(time=slot.time, available=not slot.is_booked)
-            for slot in wd.slots
+            TimeSlotResponse(time=slot.slot_time, available=slot.is_booked == 0)
+            for slot in slots
         ]
 
         if all_slots:
@@ -126,9 +129,9 @@ async def create_booking(
     slot = (
         db.query(TimeSlot)
         .filter(
-            TimeSlot.day_id == work_day.id,
-            TimeSlot.time == booking.time,
-            TimeSlot.is_booked == False,  # noqa: E712
+            TimeSlot.day_date == booking.date,
+            TimeSlot.slot_time == booking.time,
+            TimeSlot.is_booked == 0,  # noqa: E712
         )
         .first()
     )
@@ -137,17 +140,19 @@ async def create_booking(
         return BookingResponse(success=False, message="Слот не доступен или уже занят")
 
     new_booking = Booking(
-        slot_id=slot.id,
+        day_date=booking.date,
+        slot_time=booking.time,
         user_id=booking.user_id,
         username=booking.username,
         client_name=booking.name,
         phone=booking.phone,
         status="pending",
+        created_at=datetime.utcnow().isoformat(),  # ISO format string
     )
 
     try:
         db.add(new_booking)
-        slot.is_booked = True
+        slot.is_booked = 1  # Integer instead of Boolean
         db.commit()
         db.refresh(new_booking)
 

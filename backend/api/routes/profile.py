@@ -75,24 +75,19 @@ async def get_user_bookings(
 
     result: List[UserBookingResponse] = []
     for b in bookings:
-        # slot and work_day are loaded via relationship
-        slot = b.slot
-        work_day = slot.work_day if slot else None
-
+        # Direct fields from Booking (no relationships)
         result.append(
             UserBookingResponse(
                 id=b.id,
                 client_name=b.client_name,
                 phone=b.phone,
-                day_date=work_day.day_date if work_day else "",
-                slot_time=slot.time if slot else "",
+                day_date=b.day_date,  # Direct field
+                slot_time=b.slot_time,  # Direct field
                 status=b.status,
-                is_cancelled=b.status == "cancelled",
-                cancel_reason=b.cancellation_reason,
-                created_at=b.created_at.isoformat() if b.created_at else "",
-                cancelled_at=(
-                    b.cancelled_at.isoformat() if b.cancelled_at else None
-                ),
+                is_cancelled=b.is_cancelled == 1,  # Integer to Boolean
+                cancel_reason=b.cancel_reason,  # Renamed field
+                created_at=b.created_at,  # Already ISO string
+                cancelled_at=b.cancelled_at,  # Already ISO string
             )
         )
 
@@ -129,13 +124,18 @@ async def cancel_booking(
 
     try:
         booking.status = "cancelled"
-        booking.cancelled_at = datetime.utcnow()
-        booking.cancellation_reason = request.reason
+        booking.is_cancelled = 1  # Integer
+        booking.cancelled_at = datetime.utcnow().isoformat()  # ISO string
+        booking.cancel_reason = request.reason
 
-        slot = booking.slot
+        # Find and update slot manually (no relationship)
+        slot = db.query(TimeSlot).filter(
+            TimeSlot.day_date == booking.day_date,
+            TimeSlot.slot_time == booking.slot_time
+        ).first()
         if slot:
-            slot.is_booked = False
-            work_day = slot.work_day
+            slot.is_booked = 0  # Integer
+            work_day = db.query(WorkDay).filter(WorkDay.day_date == booking.day_date).first()
 
         db.commit()
 
