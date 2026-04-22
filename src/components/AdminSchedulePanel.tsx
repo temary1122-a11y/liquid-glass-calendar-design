@@ -98,14 +98,14 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
         relative rounded-3xl p-2 min-h-[64px] w-full text-left
         liquid-glass-calendar transition-all duration-200
         ${isPast ? 'opacity-40' : ''}
-        ${isSelected ? 'ring-4 ring-[#c4967a] bg-gradient-to-br from-[#f7d5bc]/70 to-[#e8c4a8]/70 shadow-xl shadow-[#c4967a]/30 border-2 border-[#c4967a]/60' : ''}
+        ${isSelected ? 'bg-gradient-to-br from-[#c4967a] to-[#b0856a] text-white font-bold shadow-lg shadow-[#c4967a]/40' : ''}
         ${isToday_ && !isSelected ? 'ring-1 ring-[#2e7d5e]/40' : ''}
       `}
     >
       {/* Day number */}
       <span className={`
         absolute top-2 left-2 z-20 text-[11px] font-semibold leading-none
-        ${isToday_ ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
+        ${isSelected ? 'text-white' : isToday_ ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
       `}>
         {format(date, 'd')}
       </span>
@@ -123,11 +123,13 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
                 key={slot}
                 className={`
                   w-1.5 h-1.5 rounded-full inline-block
-                  ${!isBooked
-                    ? 'bg-[#a07060]/60'
-                    : status === 'pending'
-                      ? 'bg-[#ef4444]'
-                      : 'bg-[#2e7d5e]'
+                  ${isSelected
+                    ? 'bg-white/80'
+                    : !isBooked
+                      ? 'bg-[#a07060]/60'
+                      : status === 'pending'
+                        ? 'bg-[#ef4444]'
+                        : 'bg-[#2e7d5e]'
                   }
                 `}
               />
