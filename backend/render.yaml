@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: lashes-booking-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: ADMIN_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: postgresql://postgres:LE315K4b80hrPd0f@db.yhfrygwnvtyutsakouoq.supabase.co:6543/postgres
+      - key: WEBHOOK_URL
+        value: https://liquid-glass-calendar-design.onrender.com/webhook
+      - key: MINI_APP_URL
+        value: https://your-mini-app.vercel.app
+    healthCheckPath: /health
