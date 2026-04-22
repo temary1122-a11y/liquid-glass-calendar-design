@@ -80,7 +80,7 @@ class CreateClientRequest(BaseModel):
 
 class UpdateClientRequest(BaseModel):
     name: str
-    phone: str
+    phone: Optional[str] = None
     date: str
     time: str
     username: Optional[str] = None
@@ -337,7 +337,7 @@ async def update_client(
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin),
 ):
-    """Обновить данные клиента по слоту (дата + время)."""
+    """Обновить данные клиента по слоту (дата + время). Если booking не существует - создать новый."""
     work_day = db.query(WorkDay).filter(WorkDay.day_date == request.date).first()
     if not work_day:
         return SuccessResponse(success=False, message="Рабочий день не найден")
@@ -347,22 +347,38 @@ async def update_client(
         TimeSlot.slot_time == request.time,
     ).first()
 
+    if not slot:
+        return SuccessResponse(success=False, message="Слот не найден")
+
     # Load booking manually (no relationship)
     booking = db.query(Booking).filter(
         Booking.day_date == slot.day_date,
         Booking.slot_time == slot.slot_time
     ).first()
 
-    if not slot or not booking:
-        return SuccessResponse(success=False, message="Запись не найдена")
-
     try:
-        booking.client_name = request.name
-        booking.phone = request.phone
-        booking.username = request.username
-        booking.note = request.note
-        if request.status:
-            booking.status = request.status
+        if not booking:
+            # Если booking не существует - создаем новый
+            booking = Booking(
+                day_date=slot.day_date,
+                slot_time=slot.slot_time,
+                client_name=request.name,
+                phone=request.phone,
+                username=request.username,
+                note=request.note,
+                status=request.status or "pending",
+            )
+            slot.is_booked = True
+            db.add(booking)
+        else:
+            # Если booking существует - обновляем
+            booking.client_name = request.name
+            booking.phone = request.phone
+            booking.username = request.username
+            booking.note = request.note
+            if request.status:
+                booking.status = request.status
+
         db.commit()
 
         await ws_manager.broadcast(
