@@ -12,7 +12,7 @@ services:
       - key: ADMIN_SECRET_KEY
         value: default-secret
       - key: DATABASE_URL
-        value: postgresql://postgres:LE315K4b80hrPd0f@db.yhfrygwnvtyutsakouoq.supabase.co:6543/postgres
+        value: postgresql://postgres:LE315K4b80hrPd0f@db.yhfrygwnvtyutsakouoq.supabase.co:5432/postgres
       - key: WEBHOOK_URL
         value: https://liquid-glass-calendar-design.onrender.com/webhook
       - key: MINI_APP_URL
