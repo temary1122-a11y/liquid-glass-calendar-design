@@ -16,7 +16,7 @@ services:
       - key: WEBHOOK_URL
         value: https://liquid-glass-calendar-design.onrender.com/webhook
       - key: MINI_APP_URL
-        value: https://lashes-booking-frontend.onrender.com
+        value: https://liquid-glass-calendar-design.netlify.app
       - key: BOT_USERNAME
         value: YourLashess_bot
     healthCheckPath: /health

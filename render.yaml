@@ -1,13 +1,1 @@
-services:
-  - type: web
-    name: lashes-booking-frontend
-    runtime: node
-    buildCommand: npm install && npm run build
-    startCommand: npm run preview
-    envVars:
-      - key: VITE_BACKEND_URL
-        value: https://liquid-glass-calendar-design.onrender.com
-      - key: VITE_WS_URL
-        value: wss://liquid-glass-calendar-design.onrender.com
-      - key: VITE_BOT_USERNAME
-        value: YourLashess_bot
+# Frontend deployed on Netlify - not on Render
