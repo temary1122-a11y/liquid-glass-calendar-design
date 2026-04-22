@@ -114,7 +114,7 @@ async def on_startup() -> None:
 
     # 3. Set Telegram webhook
     try:
-        await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+        await bot.set_webhook(WEBHOOK_URL)
         logger.info("Telegram webhook set: %s", WEBHOOK_URL)
     except Exception as exc:
         logger.error("Failed to set webhook: %s", exc)
@@ -130,7 +130,7 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     logger.info("Shutting down...")
     try:
-        await bot.delete_webhook()
+        # Don't delete webhook - it should persist across restarts
         await bot.session.close()
     except Exception:
         pass
