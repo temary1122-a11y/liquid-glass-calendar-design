@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Clock, Plus, Trash2, Edit3, Save, X } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit3, Save, X, Check, XCircle } from 'lucide-react';
 import { vibrateLight, vibrateMedium, vibrateSuccess, vibrateError } from '../utils/vibration';
 import type { AdminWorkDay, AdminBooking } from '../api/client';
 
@@ -330,9 +330,16 @@ function SelectedDayPanel({
                     </div>
                   </div>
                 ) : (
-                  <div className={`liquid-glass p-3 rounded-xl flex items-center justify-between ${
-                    isBooked ? 'bg-white/40 border border-[#c4967a]/20' : ''
-                  }`}>
+                  <motion.button
+                    onClick={() => {
+                      if (!isBooked || client.status === 'confirmed') {
+                        handleEdit(slot.time);
+                      }
+                    }}
+                    className={`liquid-glass p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-white/60 transition-colors ${
+                      isBooked ? 'bg-white/40 border border-[#c4967a]/20' : ''
+                    }`}
+                  >
 
                     <div className="flex items-center gap-3 flex-1">
                       {isBooked ? (
@@ -347,6 +354,7 @@ function SelectedDayPanel({
                                 href={`https://t.me/${client.username}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
                                 className="text-[#3d2b1f] text-sm font-semibold leading-tight truncate hover:underline hover:text-[#c4967a] transition-colors"
                               >
                                 {client.client_name}
@@ -361,6 +369,7 @@ function SelectedDayPanel({
                                   href={`https://t.me/${client.username}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
                                   className="text-[#2e7d5e] text-[10px] font-medium hover:underline"
                                 >
                                   @{client.username}
@@ -391,7 +400,8 @@ function SelectedDayPanel({
                               <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                  e.stopPropagation();
                                   const dateStr = format(date, 'yyyy-MM-dd');
                                   const result = await onUpdateClient({
                                     name: client.client_name,
@@ -409,14 +419,16 @@ function SelectedDayPanel({
                                     vibrateError();
                                   }
                                 }}
-                                className="px-3 py-1.5 rounded-lg bg-[#2e7d5e] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                                className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#2e7d5e] text-white hover:scale-105 active:scale-95 transition-all duration-200"
+                                title="Подтвердить"
                               >
-                                Подтвердить
+                                <Check size={12} />
                               </motion.button>
                               <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                  e.stopPropagation();
                                   const result = await onDeleteClient(slot.time);
                                   if (result.success) {
                                     vibrateSuccess();
@@ -425,17 +437,21 @@ function SelectedDayPanel({
                                     vibrateError();
                                   }
                                 }}
-                                className="px-3 py-1.5 rounded-lg bg-[#ef4444] text-white text-xs font-medium hover:scale-105 active:scale-95 transition-all duration-200"
+                                className="h-7 w-7 rounded-lg flex items-center justify-center bg-[#ef4444] text-white hover:scale-105 active:scale-95 transition-all duration-200"
+                                title="Отклонить"
                               >
-                                Отклонить
+                                <XCircle size={12} />
                               </motion.button>
                             </>
                           )}
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => handleDeleteClient(slot.time)}
-                            className="h-8 w-8 rounded-lg flex items-center justify-center text-[#ef4444] hover:bg-red-500/10 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClient(slot.time);
+                            }}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center text-[#ef4444] hover:bg-red-500/10 transition-colors"
                             title="Удалить запись"
                           >
                             <Trash2 size={12} />
@@ -446,17 +462,11 @@ function SelectedDayPanel({
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => handleEdit(slot.time)}
-                            className="h-8 w-8 rounded-lg flex items-center justify-center text-[#7c5340] hover:bg-white/20 transition-colors"
-                            title="Добавить запись"
-                          >
-                            <Edit3 size={12} />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleDeleteSlot(slot.time)}
-                            className="h-8 w-8 rounded-lg flex items-center justify-center text-[#ef4444] hover:bg-red-500/10 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSlot(slot.time);
+                            }}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center text-[#ef4444] hover:bg-red-500/10 transition-colors"
                             title="Удалить слот"
                           >
                             <Trash2 size={12} />
@@ -464,7 +474,7 @@ function SelectedDayPanel({
                         </>
                       )}
                     </div>
-                  </div>
+                  </motion.button>
                 )}
               </div>
             );
