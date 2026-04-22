@@ -383,12 +383,13 @@ async def update_client(
 
                 # Notify client if status changed to confirmed
                 if old_status != "confirmed" and request.status == "confirmed" and booking.user_id:
+                    # Send confirmation message with video link
                     client_text = (
-                        f"✅ <b>Запись подтверждена</b>\n\n"
-                        f"👤 Имя: {booking.client_name}\n"
-                        f"📅 Дата: {booking.day_date}\n"
-                        f"🕐 Время: {booking.slot_time}\n\n"
-                        f"Ждем вас на запись!"
+                        f"✅ <b>Записала</b>\n\n"
+                        f"� Дата: {booking.day_date}\n"
+                        f"� Время: {booking.slot_time}\n"
+                        f"� Адрес: Тихий переулок, 4\n\n"
+                        f"📹 <a href=\"https://t.me/lashessoto4ka/8\">Посмотреть видео</a>"
                     )
                     await _send_telegram_message(booking.user_id, client_text)
 

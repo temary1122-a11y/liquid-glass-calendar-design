@@ -1,9 +1,9 @@
 import os
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, UniqueConstraint, Index
+    create_engine, Column, Integer, String, Text, UniqueConstraint, Index, ForeignKey
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./lashes.db")
@@ -34,6 +34,14 @@ class TimeSlot(Base):
     slot_time = Column(String(5), nullable=False)  # HH:MM (renamed from time)
     is_booked = Column(Integer, default=0)  # 0 = False, 1 = True (Supabase uses integer)
 
+    # Relationship to WorkDay (via day_date)
+    work_day = relationship(
+        "WorkDay",
+        primaryjoin="TimeSlot.day_date == WorkDay.day_date",
+        foreign_keys=[day_date],
+        backref="time_slots"
+    )
+
     __table_args__ = (
         UniqueConstraint("day_date", "slot_time", name="unique_day_time"),
     )
@@ -56,6 +64,14 @@ class Booking(Base):
     cancel_reason = Column(Text, nullable=True)  # renamed from cancellation_reason
     cancelled_at = Column(String, nullable=True)  # ISO format string (Supabase: text)
     service_id = Column(String(50), nullable=True)  # NEW field (Supabase has it)
+
+    # Relationship to TimeSlot (via day_date and slot_time)
+    slot = relationship(
+        "TimeSlot",
+        primaryjoin="and_(Booking.day_date == TimeSlot.day_date, Booking.slot_time == TimeSlot.slot_time)",
+        foreign_keys=[day_date, slot_time],
+        backref="booking"
+    )
 
     __table_args__ = (
         Index("idx_bookings_user_id", "user_id"),

@@ -50,6 +50,22 @@ export const MESSAGE_TEMPLATES = {
     message += `\n📅 Дата: ${date}\n🕐 Время: ${time}`;
     return message;
   },
+
+  ADMIN_CONFIRMATION_FORM: ({
+    date,
+    time,
+  }: {
+    date: string;
+    time: string;
+  }): string => {
+    const message =
+      `Записала\n` +
+      `📅 Дата: ${date}\n` +
+      `🕐 Время: ${time}\n` +
+      `📍 Адрес: ${CONTACT_INFO.ADDRESS}\n\n` +
+      `📹 <a href="https://t.me/lashessoto4ka/8">Посмотреть видео</a>`;
+    return message;
+  },
 };
 
 export const SERVICES = [
