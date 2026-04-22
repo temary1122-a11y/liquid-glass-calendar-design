@@ -336,7 +336,7 @@ function SelectedDayPanel({
                         handleEdit(slot.time);
                       }
                     }}
-                    className={`liquid-glass p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-white/60 transition-colors ${
+                    className={`liquid-glass p-3 rounded-xl flex items-center justify-between cursor-pointer ${
                       isBooked ? 'bg-white/40 border border-[#c4967a]/20' : ''
                     }`}
                   >
