@@ -197,6 +197,19 @@ class ApiClient {
     }
   }
 
+  async getArchive(): Promise<UserBooking[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/admin/archive`, {
+        headers: getAdminHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('getArchive error:', e);
+      return [];
+    }
+  }
+
   async addTimeSlot(
     date: string,
     time: string

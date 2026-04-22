@@ -459,3 +459,32 @@ async def notify_cancellation(
     # fire-and-forget — не ждём результата
     await _send_telegram_message(ADMIN_ID, text)
     return {"ok": True}
+
+
+@router.get("/archive")
+async def get_archive(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+):
+    """
+    Получить архивированные записи (completed, cancelled).
+    Сортировка по дате создания (сначала самые новые).
+    """
+    archive_bookings = db.query(Booking).filter(
+        Booking.status.in_(["completed", "cancelled"])
+    ).order_by(Booking.created_at.desc()).all()
+
+    return [
+        {
+            "id": b.id,
+            "client_name": b.client_name,
+            "phone": b.phone,
+            "day_date": b.day_date,
+            "slot_time": b.slot_time,
+            "status": b.status,
+            "cancelled_at": b.cancelled_at,
+            "cancel_reason": b.cancel_reason,
+            "created_at": b.created_at,
+        }
+        for b in archive_bookings
+    ]
