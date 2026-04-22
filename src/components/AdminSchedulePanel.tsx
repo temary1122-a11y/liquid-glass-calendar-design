@@ -90,7 +90,7 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
         relative rounded-3xl p-2 min-h-[64px] w-full text-left
         liquid-glass-calendar transition-all duration-200
         ${isPast ? 'opacity-40' : ''}
-        ${isSelected ? 'ring-2 ring-[#7c5340]/50 bg-white/20' : ''}
+        ${isSelected ? 'ring-3 ring-[#7c5340] bg-white/30' : ''}
         ${isToday_ && !isSelected ? 'ring-1 ring-[#2e7d5e]/40' : ''}
       `}
     >
