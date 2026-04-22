@@ -46,7 +46,7 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
             [
                 InlineKeyboardButton(
                     text="📅 Записаться",
-                    url=MINI_APP_URL,
+                    web_app=WebAppInfo(url=MINI_APP_URL),
                 )
             ],
             [
