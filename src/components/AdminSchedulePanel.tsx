@@ -14,6 +14,14 @@ import SelectedDayPanel from './SelectedDayPanel';
 
 const DAYS_HEADER = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
+// Helper for adaptive animation duration
+const getAnimationDuration = (base: number) => {
+  if (typeof window !== 'undefined' && (window as any).__LOW_PERFORMANCE__) {
+    return base * 0.67; // 33% faster on low performance devices
+  }
+  return base;
+};
+
 function getMonthDays(month: Date): Date[] {
   const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
   const end = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
@@ -90,7 +98,7 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
         relative rounded-3xl p-2 min-h-[64px] w-full text-left
         liquid-glass-calendar transition-all duration-200
         ${isPast ? 'opacity-40' : ''}
-        ${isSelected ? 'ring-4 ring-[#7c5340] bg-[#f7d5bc]/50 shadow-lg' : ''}
+        ${isSelected ? 'ring-4 ring-[#c4967a] bg-gradient-to-br from-[#f7d5bc]/70 to-[#e8c4a8]/70 shadow-xl shadow-[#c4967a]/30 border-2 border-[#c4967a]/60' : ''}
         ${isToday_ && !isSelected ? 'ring-1 ring-[#2e7d5e]/40' : ''}
       `}
     >
@@ -240,7 +248,7 @@ export default function AdminSchedulePanel() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: getAnimationDuration(0.15) }}
           >
       {/* ── Calendar Grid ── */}
       <div className="liquid-glass-calendar p-3 rounded-2xl" {...swipeHandlers}>
@@ -333,7 +341,7 @@ export default function AdminSchedulePanel() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: getAnimationDuration(0.15) }}
             className="space-y-4"
           >
             {/* Active bookings */}
@@ -472,7 +480,7 @@ export default function AdminSchedulePanel() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: getAnimationDuration(0.15) }}
               onClick={(e) => e.stopPropagation()}
               className="liquid-glass rounded-2xl p-4 max-w-md w-full max-h-[80vh] overflow-y-auto"
             >
