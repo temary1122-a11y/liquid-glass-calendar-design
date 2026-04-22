@@ -371,13 +371,14 @@ async def update_client(
             )
             slot.is_booked = True
             db.add(booking)
+            old_status = None
         else:
             # Если booking существует - обновляем
+            old_status = booking.status
             booking.client_name = request.name
             booking.phone = request.phone
             booking.username = request.username
             booking.note = request.note
-            old_status = booking.status
             if request.status:
                 booking.status = request.status
 

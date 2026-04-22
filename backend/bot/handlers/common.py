@@ -8,13 +8,14 @@ Bot command handlers:
 import os
 from datetime import datetime
 
+import httpx
 from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
-from database.db import Booking, SessionLocal
+from database.db import Booking, SessionLocal, TimeSlot
 
 router = Router()
 
@@ -256,7 +257,15 @@ async def process_cancel_reason(message: types.Message, state: FSMContext) -> No
             booking.cancelled_at = datetime.utcnow()
             booking.cancellation_reason = reason
 
-            slot = booking.slot
+            # Free the slot
+            slot = (
+                db.query(TimeSlot)
+                .filter(
+                    TimeSlot.day_date == booking.day_date,
+                    TimeSlot.slot_time == booking.slot_time,
+                )
+                .first()
+            )
             if slot:
                 slot.is_booked = False
 
