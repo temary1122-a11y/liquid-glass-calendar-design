@@ -132,7 +132,12 @@ export default function BookingForm({
 
       // Delay to show success state
       setTimeout(() => {
-        window.open(telegramUrl, '_blank');
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+          tg.openTelegramLink(telegramUrl);
+        } else {
+          window.open(telegramUrl, '_blank');
+        }
         onClose();
       }, 1200);
     } catch {

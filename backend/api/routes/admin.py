@@ -381,18 +381,6 @@ async def update_client(
             if request.status:
                 booking.status = request.status
 
-                # Notify client if status changed to confirmed
-                if old_status != "confirmed" and request.status == "confirmed" and booking.user_id:
-                    # Send confirmation message with video link
-                    client_text = (
-                        f"✅ <b>Записала</b>\n\n"
-                        f"� Дата: {booking.day_date}\n"
-                        f"� Время: {booking.slot_time}\n"
-                        f"� Адрес: Тихий переулок, 4\n\n"
-                        f"📹 <a href=\"https://t.me/lashessoto4ka/8\">Посмотреть видео</a>"
-                    )
-                    await _send_telegram_message(booking.user_id, client_text)
-
         db.commit()
 
         await ws_manager.broadcast(
@@ -402,7 +390,24 @@ async def update_client(
             }
         )
 
-        return SuccessResponse(success=True, message="Запись обновлена")
+        if old_status != "confirmed" and request.status == "confirmed" and booking.user_id:
+            return SuccessResponse(
+                success=True,
+                message="Запись обновлена",
+                data={
+                    "type": "open_chat",
+                    "user_id": booking.user_id,
+                    "text": (
+                        f"✅ <b>Записала</b>\n\n"
+                        f"📅 Дата: {booking.day_date}\n"
+                        f"🕐 Время: {booking.slot_time}\n"
+                        f"📍 Адрес: Тихий переулок, 4\n\n"
+                        f"📹 <a href=\"https://t.me/lashessoto4ka/8\">Посмотреть видео</a>"
+                    ),
+                },
+            )
+        else:
+            return SuccessResponse(success=True, message="Запись обновлена")
     except Exception as exc:
         db.rollback()
         return SuccessResponse(success=False, message=f"Ошибка: {exc}")
