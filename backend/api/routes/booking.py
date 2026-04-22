@@ -5,6 +5,8 @@ GET  /api/booking/available-dates  — public, returns available work days & slo
 POST /api/booking/book             — public, creates a new booking
 """
 
+import os
+import httpx
 from datetime import datetime
 from typing import List, Optional
 
@@ -16,6 +18,27 @@ from database.db import Booking, TimeSlot, WorkDay, get_db
 from api.websocket import manager as ws_manager
 
 router = APIRouter(prefix="/api/booking", tags=["booking"])
+
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+ADMIN_ID: str = os.getenv("ADMIN_ID", "")
+
+
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+
+async def _send_telegram_message(chat_id: str | int, text: str) -> None:
+    """Fire-and-forget: send a message via Telegram Bot API."""
+    if not BOT_TOKEN:
+        return
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(url, json=payload)
+    except Exception as exc:
+        print(f"[notify] Failed to send Telegram message: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +190,20 @@ async def create_booking(
                 },
             }
         )
+
+        # Notify admin about new booking
+        phone_text = f"\n📞 Телефон: {booking.phone}" if booking.phone else ""
+        username_text = f"\n👤 Telegram: @{booking.username}" if booking.username else ""
+        admin_text = (
+            f"🔔 <b>Новая запись</b>\n\n"
+            f"👤 Имя: {booking.name}"
+            f"{phone_text}"
+            f"{username_text}"
+            f"\n📅 Дата: {booking.date}"
+            f"\n🕐 Время: {booking.time}"
+            f"\n📝 Статус: Ожидает подтверждения"
+        )
+        await _send_telegram_message(ADMIN_ID, admin_text)
 
         return BookingResponse(
             success=True,

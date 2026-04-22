@@ -377,8 +377,20 @@ async def update_client(
             booking.phone = request.phone
             booking.username = request.username
             booking.note = request.note
+            old_status = booking.status
             if request.status:
                 booking.status = request.status
+
+                # Notify client if status changed to confirmed
+                if old_status != "confirmed" and request.status == "confirmed" and booking.user_id:
+                    client_text = (
+                        f"✅ <b>Запись подтверждена</b>\n\n"
+                        f"👤 Имя: {booking.client_name}\n"
+                        f"📅 Дата: {booking.day_date}\n"
+                        f"🕐 Время: {booking.slot_time}\n\n"
+                        f"Ждем вас на запись!"
+                    )
+                    await _send_telegram_message(booking.user_id, client_text)
 
         db.commit()
 

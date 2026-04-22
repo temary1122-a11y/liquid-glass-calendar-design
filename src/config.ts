@@ -29,7 +29,6 @@ export const SOCIAL_LINKS = {
   PRICES_POST_LINK: 'https://t.me/lashessoto4ka/285',
   INSTAGRAM_LINK:
     'https://www.instagram.com/your_lashes_simf?igsh=MTFvaHdscnIzbWF0Mw%3D%3D&utm_source=qr',
-  PORTFOLIO_LINK: 'https://ru.pinterest.com/crystalwithluv/_created/',
 };
 
 export const MESSAGE_TEMPLATES = {
