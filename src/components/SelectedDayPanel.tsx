@@ -263,7 +263,7 @@ function SelectedDayPanel({
       </AnimatePresence>
 
       {/* ── Slots list ── */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 mt-4">
         {slots.length === 0 ? (
           <p className="text-center text-[#9e8476] text-xs py-4">
             Нет слотов — нажмите «+ Слот»
