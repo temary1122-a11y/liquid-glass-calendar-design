@@ -6,15 +6,15 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: BOT_TOKEN
-        sync: false
+        value: 8646567713:AAGaYReANb-Ua4NSoHIOlk06GKKExL-DS6M
       - key: ADMIN_ID
-        sync: false
+        value: 1834686956
       - key: ADMIN_SECRET_KEY
-        sync: false
+        value: default-secret
       - key: DATABASE_URL
         value: postgresql://postgres:LE315K4b80hrPd0f@db.yhfrygwnvtyutsakouoq.supabase.co:6543/postgres
       - key: WEBHOOK_URL
         value: https://liquid-glass-calendar-design.onrender.com/webhook
       - key: MINI_APP_URL
-        value: https://your-mini-app.vercel.app
+        value: https://liquid-glass-calendar-design.vercel.app
     healthCheckPath: /health
