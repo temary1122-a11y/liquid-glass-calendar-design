@@ -16,7 +16,7 @@ services:
       - key: WEBHOOK_URL
         value: https://liquid-glass-calendar-design.onrender.com/webhook
       - key: MINI_APP_URL
-        value: https://liquid-glass-calendar-design.vercel.app
+        value: https://lashes-booking-frontend.onrender.com
       - key: BOT_USERNAME
         value: YourLashess_bot
     healthCheckPath: /health
