@@ -437,6 +437,17 @@ function SelectedDayPanel({
                                   if (result.success) {
                                     vibrateSuccess();
                                     onRefresh();
+
+                                    // Open chat with client if backend returned open_chat data
+                                    if (result.data && result.data.type === 'open_chat') {
+                                      const tg = window.Telegram?.WebApp;
+                                      const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
+                                      if (tg) {
+                                        tg.openTelegramLink(telegramUrl);
+                                      } else {
+                                        window.open(telegramUrl, '_blank');
+                                      }
+                                    }
                                   } else {
                                     vibrateError();
                                   }
