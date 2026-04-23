@@ -10,7 +10,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database.db import Booking, TimeSlot, WorkDay, get_db
@@ -64,10 +63,9 @@ async def get_available_dates(db: Session = Depends(get_db)):
     """
     today = datetime.now().date()
 
-    # FIX: Use explicit SQL for integer column type (database still has INTEGER, not BOOLEAN)
     work_days = (
         db.query(WorkDay)
-        .filter(text("work_days.is_closed = 0"))
+        .filter(WorkDay.is_closed == False)
         .order_by(WorkDay.day_date)
         .all()
     )
