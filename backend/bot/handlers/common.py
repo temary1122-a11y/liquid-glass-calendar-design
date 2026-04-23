@@ -254,8 +254,8 @@ async def process_cancel_reason(message: types.Message, state: FSMContext) -> No
 
         try:
             booking.status = "cancelled"
-            booking.cancelled_at = datetime.utcnow()
-            booking.cancellation_reason = reason
+            booking.cancelled_at = datetime.utcnow().isoformat()
+            booking.cancel_reason = reason
 
             # Free the slot
             slot = (
@@ -267,7 +267,7 @@ async def process_cancel_reason(message: types.Message, state: FSMContext) -> No
                 .first()
             )
             if slot:
-                slot.is_booked = False
+                slot.is_booked = 0
 
             db.commit()
         except Exception as exc:

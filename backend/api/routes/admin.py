@@ -56,6 +56,7 @@ class SuccessResponse(BaseModel):
     success: bool
     message: str
     booking_id: Optional[int] = None
+    data: Optional[Dict] = None
 
 
 class AddSlotRequest(BaseModel):
@@ -369,7 +370,7 @@ async def update_client(
                 status=request.status or "pending",
                 created_at=datetime.utcnow(),
             )
-            slot.is_booked = True
+            slot.is_booked = 1
             db.add(booking)
             old_status = None
             print(f"[admin] Created new booking: username={booking.username}, status={booking.status}")

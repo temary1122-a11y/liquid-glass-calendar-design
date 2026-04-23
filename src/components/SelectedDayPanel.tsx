@@ -453,12 +453,9 @@ function SelectedDayPanel({
                                       const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(confirmationText)}`;
 
                                       setTimeout(() => {
-                                        const tg = window.Telegram?.WebApp;
-                                        if (tg) {
-                                          tg.openTelegramLink(telegramUrl);
-                                        } else {
-                                          window.open(telegramUrl, '_blank');
-                                        }
+                                        // Use window.open to support ?text= parameter
+                                        // tg.openTelegramLink doesn't support text parameter for security reasons
+                                        window.open(telegramUrl, '_blank');
                                       }, 500);
                                     }
 
