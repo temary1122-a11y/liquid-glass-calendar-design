@@ -436,18 +436,33 @@ function SelectedDayPanel({
                                   });
                                   if (result.success) {
                                     vibrateSuccess();
-                                    onRefresh();
 
-                                    // Open chat with client if backend returned open_chat data
-                                    if (result.data && result.data.type === 'open_chat') {
-                                      const tg = window.Telegram?.WebApp;
-                                      const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
-                                      if (tg) {
-                                        tg.openTelegramLink(telegramUrl);
-                                      } else {
-                                        window.open(telegramUrl, '_blank');
-                                      }
+                                    // Open chat with client (frontend builds URL independently)
+                                    if (client.username) {
+                                      const confirmationText = [
+                                        `✅ Записала!`,
+                                        ``,
+                                        `📅 Дата: ${dateStr}`,
+                                        `🕐 Время: ${slot.time}`,
+                                        `📍 Адрес: Тихий переулок, 4`,
+                                        ``,
+                                        `📹 Посмотреть видео: https://t.me/lashessoto4ka/8`,
+                                      ].join('\n');
+
+                                      const username = client.username.replace('@', '');
+                                      const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(confirmationText)}`;
+
+                                      setTimeout(() => {
+                                        const tg = window.Telegram?.WebApp;
+                                        if (tg) {
+                                          tg.openTelegramLink(telegramUrl);
+                                        } else {
+                                          window.open(telegramUrl, '_blank');
+                                        }
+                                      }, 500);
                                     }
+
+                                    onRefresh();
                                   } else {
                                     vibrateError();
                                   }
