@@ -18,6 +18,7 @@ interface BookingFormProps {
 }
 
 const PHONE_REGEX = /^(\+7|8|7)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{5,32}$/;
 
 function validatePhone(phone: string): { valid: boolean; message?: string } {
   if (!phone || !phone.trim()) return { valid: true }; // Optional
@@ -27,6 +28,14 @@ function validatePhone(phone: string): { valid: boolean; message?: string } {
   }
   if (!PHONE_REGEX.test(phone)) {
     return { valid: false, message: 'Неверный формат. Используйте: +7 978 423-74-53' };
+  }
+  return { valid: true };
+}
+
+function validateUsername(username: string): { valid: boolean; message?: string } {
+  if (!username || !username.trim()) return { valid: true }; // Optional
+  if (!USERNAME_REGEX.test(username)) {
+    return { valid: false, message: 'Username должен содержать только буквы, цифры и подчеркивания (5-32 символа)' };
   }
   return { valid: true };
 }
@@ -52,6 +61,9 @@ export default function BookingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [autoFilled, setAutoFilled] = useState(false);
+  const [username, setUsername] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [isTelegram, setIsTelegram] = useState(false);
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
@@ -62,6 +74,10 @@ export default function BookingForm({
         setName(fullName);
         setAutoFilled(true);
       }
+      if (user.username) {
+        setUsername(user.username);
+      }
+      setIsTelegram(true);
     }
   }, []);
 
@@ -83,6 +99,24 @@ export default function BookingForm({
     }
   }
 
+  function handleUsernameChange(val: string) {
+    setUsername(val);
+    if (usernameError) {
+      const v = validateUsername(val);
+      if (v.valid) setUsernameError(null);
+    }
+  }
+
+  function handleUsernameBlur() {
+    const v = validateUsername(username);
+    if (!v.valid) {
+      setUsernameError(v.message || null);
+      vibrateWarning();
+    } else {
+      setUsernameError(null);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -92,6 +126,16 @@ export default function BookingForm({
       setPhoneError(phoneValidation.message || null);
       vibrateError();
       return;
+    }
+
+    // Validate username (only if not in Telegram)
+    if (!isTelegram) {
+      const usernameValidation = validateUsername(username);
+      if (!usernameValidation.valid) {
+        setUsernameError(usernameValidation.message || null);
+        vibrateError();
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -106,7 +150,7 @@ export default function BookingForm({
         time,
         service_id: 'classic',
         user_id: telegramUser?.id,
-        username: telegramUser?.username,
+        username: username || undefined,
       });
 
       if (!result.success) {
@@ -252,6 +296,46 @@ export default function BookingForm({
             )}
           </AnimatePresence>
         </div>
+
+        {/* Username (only if not in Telegram) */}
+        {!isTelegram && (
+          <div>
+            <label className="block text-xs font-medium text-[#7c5340] mb-1.5">
+              Telegram username{' '}
+              <span className="text-[#9e8476] font-normal">(без @)</span>
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9e8476] w-4 h-4" />
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => handleUsernameChange(e.target.value)}
+                onBlur={handleUsernameBlur}
+                className={`liquid-glass-input w-full pl-9 pr-4 py-2.5 rounded-xl text-[#3d2b1f] text-sm
+                  placeholder:text-[#9e8476]/60 ${
+                  usernameError ? 'border-red-300 focus:border-red-400' : ''
+                }`}
+                placeholder="username"
+              />
+            </div>
+            <AnimatePresence>
+              {usernameError ? (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="text-[10px] text-red-500 mt-1 flex items-center gap-1"
+                >
+                  <AlertCircle size={10} /> {usernameError}
+                </motion.p>
+              ) : (
+                <p className="text-[10px] text-[#9e8476] mt-1">
+                  Нужно для отправки подтверждения в личные сообщения
+                </p>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Submit button */}
         <motion.button
