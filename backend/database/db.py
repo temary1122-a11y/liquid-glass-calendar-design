@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import (
-    create_engine, Column, Integer, Boolean, String, Text, UniqueConstraint, Index, ForeignKey
+    create_engine, Column, Integer, BigInteger, Boolean, String, Text, UniqueConstraint, Index, ForeignKey
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -51,7 +51,7 @@ class Booking(Base):
     __tablename__ = "bookings"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(BigInteger, nullable=True)
     username = Column(String(255), nullable=True)
     client_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
