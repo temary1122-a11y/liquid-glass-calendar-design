@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, UniqueConstraint, Index, ForeignKey
+    create_engine, Column, Integer, Boolean, String, Text, UniqueConstraint, Index, ForeignKey
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -23,7 +23,7 @@ class WorkDay(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     day_date = Column(String(10), unique=True, nullable=False)  # YYYY-MM-DD
-    is_closed = Column(Integer, default=0)  # 0 = False, 1 = True (Supabase uses integer)
+    is_closed = Column(Boolean, default=False)
 
 
 class TimeSlot(Base):
