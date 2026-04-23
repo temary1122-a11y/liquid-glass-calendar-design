@@ -178,8 +178,14 @@ export default function BookingForm({
       setTimeout(() => {
         // Use window.open to support ?text= parameter
         // tg.openTelegramLink doesn't support text parameter for security reasons
-        window.open(telegramUrl, '_blank');
-        onClose();
+        console.log('[BookingForm] Opening Telegram URL:', telegramUrl);
+        const opened = window.open(telegramUrl, '_blank');
+        if (!opened) {
+          console.warn('[BookingForm] window.open blocked or failed, trying location.href');
+          window.location.href = telegramUrl;
+        }
+        // Close modal after opening chat
+        setTimeout(() => onClose(), 500);
       }, 1200);
     } catch {
       vibrateError();
