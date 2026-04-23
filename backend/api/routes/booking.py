@@ -64,10 +64,10 @@ async def get_available_dates(db: Session = Depends(get_db)):
     """
     today = datetime.now().date()
 
-    # FIX: Use explicit SQL to handle integer column type (will work after migration to BOOLEAN too)
+    # FIX: Use explicit SQL for integer column type (database still has INTEGER, not BOOLEAN)
     work_days = (
         db.query(WorkDay)
-        .filter(text("work_days.is_closed = 0 OR work_days.is_closed = false"))
+        .filter(text("work_days.is_closed = 0"))
         .order_by(WorkDay.day_date)
         .all()
     )
