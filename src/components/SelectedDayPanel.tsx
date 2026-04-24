@@ -115,12 +115,15 @@ function SelectedDayPanel({
         // Use Telegram.WebApp.openTelegramLink for Mini App compatibility
         if (window.Telegram?.WebApp?.openTelegramLink) {
           window.Telegram.WebApp.openTelegramLink(telegramUrl);
+          alert('📱 Открываю чат с клиентом...');
         } else {
           window.open(telegramUrl, '_blank');
+          alert('📱 Открываю чат с клиентом...');
         }
       } else {
         console.log('❌ No open_chat data or missing username');
         console.log('Full result.data:', JSON.stringify(result.data, null, 2));
+        alert('⚠️ Чат не открыт: ' + JSON.stringify(result.data || 'нет данных'));
       }
 
       // Delay refresh to allow chat to open first
