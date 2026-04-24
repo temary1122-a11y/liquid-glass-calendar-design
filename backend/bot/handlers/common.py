@@ -17,6 +17,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
+    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
@@ -399,19 +400,19 @@ async def cmd_backup(message: types.Message) -> None:
         if result.returncode == 0:
             file_size = os.path.getsize(backup_filename)
             
-            # Send the backup file to admin
-            with open(backup_filename, "rb") as backup_file:
-                await message.answer_document(
-                    document=backup_file,
-                    caption=f"✅ Бекап создан: {backup_filename} ({file_size} bytes)"
-                )
+            # Send the backup file to admin using FSInputFile
+            document = FSInputFile(backup_filename)
+            await message.answer_document(
+                document=document,
+                caption=f"✅ Бекап создан: {backup_filename} ({file_size} bytes)"
+            )
             
             # Clean up the backup file
             os.remove(backup_filename)
         else:
             await message.answer(f"❌ Ошибка создания бекапа: {result.stderr}")
     except Exception as exc:
-        await message.answer(f"❌ Исключение при создании бекапа: {exc}")
+        await message.answer(f"❌ Исключение при создании бекапа: {str(exc)}")
 
 
 # ---------------------------------------------------------------------------

@@ -388,18 +388,6 @@ async def update_client(
 
         db.commit()
 
-        # Notify admin when booking is confirmed
-        if old_status != "confirmed" and request.status == "confirmed":
-            admin_text = (
-                f"✅ <b>Запись подтверждена</b>\n\n"
-                f"👤 Имя: {booking.client_name}\n"
-                f"📅 Дата: {booking.day_date}\n"
-                f"🕐 Время: {booking.slot_time}\n"
-                f"📞 Телефон: {booking.phone or '—'}\n"
-                f"💬 Telegram: @{booking.username or '—'}"
-            )
-            await _send_telegram_message(ADMIN_ID, admin_text)
-
         # Debug logging for chat opening
         print(f"[DEBUG] After commit - booking.username={booking.username}")
         print(f"[DEBUG] old_status={old_status}, request.status={request.status}")
@@ -434,7 +422,10 @@ async def update_client(
                 },
             )
         else:
-            print(f"[admin] ❌ Not opening chat: old_status={old_status}, request.status={request.status}, username={booking.username}")
+            print(f"[admin] ❌ Chat NOT opened. Reasons:")
+            print(f"  - old_status == 'confirmed': {old_status == 'confirmed'} (old_status={old_status})")
+            print(f"  - request.status != 'confirmed': {request.status != 'confirmed'} (request.status={request.status})")
+            print(f"  - booking.username is falsy: {not booking.username} (booking.username={repr(booking.username)})")
             return SuccessResponse(success=True, message="Запись обновлена")
     except Exception as exc:
         db.rollback()
