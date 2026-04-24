@@ -101,7 +101,11 @@ function SelectedDayPanel({
     console.log('result.message:', result.message);
 
     if (result.success) {
-      alert('✅ Успешное сохранение! result.data: ' + JSON.stringify(result.data));
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('✅ Успешное сохранение! result.data: ' + JSON.stringify(result.data));
+      } else {
+        alert('✅ Успешное сохранение! result.data: ' + JSON.stringify(result.data));
+      }
       vibrateSuccess();
       setEditingSlot(null);
 
@@ -116,15 +120,27 @@ function SelectedDayPanel({
         // Use Telegram.WebApp.openTelegramLink for Mini App compatibility
         if (window.Telegram?.WebApp?.openTelegramLink) {
           window.Telegram.WebApp.openTelegramLink(telegramUrl);
-          alert('📱 Открываю чат с клиентом...');
+          if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert('📱 Открываю чат с клиентом...');
+          } else {
+            alert('📱 Открываю чат с клиентом...');
+          }
         } else {
           window.open(telegramUrl, '_blank');
-          alert('📱 Открываю чат с клиентом...');
+          if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert('📱 Открываю чат с клиентом...');
+          } else {
+            alert('📱 Открываю чат с клиентом...');
+          }
         }
       } else {
         console.log('❌ No open_chat data or missing username');
         console.log('Full result.data:', JSON.stringify(result.data, null, 2));
-        alert('⚠️ Чат не открыт: ' + JSON.stringify(result.data || 'нет данных'));
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert('⚠️ Чат не открыт: ' + JSON.stringify(result.data || 'нет данных'));
+        } else {
+          alert('⚠️ Чат не открыт: ' + JSON.stringify(result.data || 'нет данных'));
+        }
       }
 
       // Delay refresh to allow chat to open first
@@ -448,7 +464,11 @@ function SelectedDayPanel({
                                   console.log('[CONFIRM BUTTON] result.success:', result.success);
                                   console.log('[CONFIRM BUTTON] result.data:', result.data);
                                   if (result.success) {
-                                    alert('✅ Кнопка подтверждения: result.data = ' + JSON.stringify(result.data));
+                                    if (window.Telegram?.WebApp?.showAlert) {
+                                      window.Telegram.WebApp.showAlert('✅ Кнопка подтверждения: result.data = ' + JSON.stringify(result.data));
+                                    } else {
+                                      alert('✅ Кнопка подтверждения: result.data = ' + JSON.stringify(result.data));
+                                    }
                                     vibrateSuccess();
 
                                     // Check backend response for open_chat
@@ -458,14 +478,26 @@ function SelectedDayPanel({
                                       console.log('[CONFIRM BUTTON] Opening URL:', telegramUrl);
                                       if (window.Telegram?.WebApp?.openTelegramLink) {
                                         window.Telegram.WebApp.openTelegramLink(telegramUrl);
-                                        alert('📱 Открываю чат с клиентом (кнопка)...');
+                                        if (window.Telegram?.WebApp?.showAlert) {
+                                          window.Telegram.WebApp.showAlert('📱 Открываю чат с клиентом (кнопка)...');
+                                        } else {
+                                          alert('📱 Открываю чат с клиентом (кнопка)...');
+                                        }
                                       } else {
                                         window.open(telegramUrl, '_blank');
-                                        alert('📱 Открываю чат с клиентом (кнопка)...');
+                                        if (window.Telegram?.WebApp?.showAlert) {
+                                          window.Telegram.WebApp.showAlert('📱 Открываю чат с клиентом (кнопка)...');
+                                        } else {
+                                          alert('📱 Открываю чат с клиентом (кнопка)...');
+                                        }
                                       }
                                     } else {
                                       console.log('[CONFIRM BUTTON] No open_chat in result.data, checking local client.username:', client.username);
-                                      alert('⚠️ Нет open_chat в ответе, использую fallback');
+                                      if (window.Telegram?.WebApp?.showAlert) {
+                                        window.Telegram.WebApp.showAlert('⚠️ Нет open_chat в ответе, использую fallback');
+                                      } else {
+                                        alert('⚠️ Нет open_chat в ответе, использую fallback');
+                                      }
                                       // Fallback to local data
                                       if (client.username) {
                                         const confirmationText = [
