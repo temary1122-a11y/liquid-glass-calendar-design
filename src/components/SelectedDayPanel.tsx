@@ -101,6 +101,7 @@ function SelectedDayPanel({
     console.log('result.message:', result.message);
 
     if (result.success) {
+      alert('✅ Успешное сохранение! result.data: ' + JSON.stringify(result.data));
       vibrateSuccess();
       setEditingSlot(null);
 
