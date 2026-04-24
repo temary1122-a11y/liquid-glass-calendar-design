@@ -28,8 +28,8 @@ from starlette.responses import JSONResponse
 from database.db import init_db
 from api.routes import booking, profile, admin
 from api.websocket import router as ws_router
-from bot.bot import bot, dp
-from bot.handlers.webhook import router as webhook_router, set_bot_and_dispatcher
+from bot.bot import bot, dp, set_bot_commands
+from bot.handlers.webhook import set_bot_and_dispatcher
 from bot.scheduler import start_scheduler
 
 # ---------------------------------------------------------------------------
@@ -122,7 +122,14 @@ async def on_startup() -> None:
     except Exception as exc:
         logger.error("Failed to set webhook: %s", exc)
 
-    # 4. Start reminder scheduler
+    # 4. Set bot commands menu
+    try:
+        await set_bot_commands()
+        logger.info("Bot commands menu set.")
+    except Exception as exc:
+        logger.error("Failed to set bot commands: %s", exc)
+
+    # 5. Start reminder scheduler
     start_scheduler()
     logger.info("APScheduler started.")
 

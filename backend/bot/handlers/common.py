@@ -3,6 +3,7 @@ Bot command handlers:
   /start      — welcome message + Записаться button (opens Mini App)
   /cancel     — cancels active booking (FSM: ask reason → process)
   /mybooking  — shows current active booking
+  /help       — shows help message
   /backup     — admin only: creates database backup
 """
 
@@ -15,7 +16,13 @@ from aiogram import F, Router, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    WebAppInfo,
+)
 
 from database.db import Booking, SessionLocal, TimeSlot
 
@@ -23,6 +30,23 @@ router = Router()
 
 ADMIN_ID: int = int(os.getenv("ADMIN_ID", "0"))
 MINI_APP_URL: str = os.getenv("MINI_APP_URL", "https://temary1122-a11y.github.io/liquid-glass-calendar-design/")
+
+
+# ---------------------------------------------------------------------------
+# Permanent keyboard (always visible)
+# ---------------------------------------------------------------------------
+
+
+main_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📅 Записаться")],
+        [KeyboardButton(text="📋 Моя запись")],
+        [KeyboardButton(text="❌ Отменить запись")],
+        [KeyboardButton(text="❓ Помощь")],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=False,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +96,12 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
         "Я помогу вам записаться к мастеру ресниц.\n\n"
         "Нажмите кнопку ниже, чтобы выбрать удобное время:",
         reply_markup=keyboard,
+    )
+    
+    # Also show permanent keyboard
+    await message.answer(
+        "💡 Используйте кнопки ниже для быстрых действий:",
+        reply_markup=main_keyboard,
     )
 
 
@@ -353,3 +383,87 @@ async def cmd_backup(message: types.Message) -> None:
     except Exception as exc:
         await message.answer(f"❌ Исключение при создании бекапа: {exc}")
 
+
+# ---------------------------------------------------------------------------
+# /help
+# ---------------------------------------------------------------------------
+
+
+@router.message(Command("help"))
+async def cmd_help(message: types.Message) -> None:
+    """Показывает справку по боту."""
+    help_text = (
+        "📚 <b>Справка по боту</b>\n\n"
+        "📅 <b>Записаться</b> — открывает календарь для записи\n"
+        "📋 <b>Моя запись</b> — показывает вашу текущую запись\n"
+        "❌ <b>Отменить запись</b> — отменяет вашу запись\n"
+        "❓ <b>Помощь</b> — показывает эту справку\n\n"
+        "💡 Используйте кнопки ниже для быстрых действий."
+    )
+    await message.answer(help_text, reply_markup=main_keyboard)
+
+
+# ---------------------------------------------------------------------------
+# Text button handlers (permanent keyboard)
+# ---------------------------------------------------------------------------
+
+
+@router.message(F.text == "📅 Записаться")
+async def btn_book(message: types.Message) -> None:
+    """Обработчик кнопки 'Записаться'."""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📅 Записаться",
+                    web_app=WebAppInfo(url=MINI_APP_URL),
+                )
+            ]
+        ]
+    )
+    await message.answer(
+        "📅 Нажмите кнопку ниже для записи:",
+        reply_markup=keyboard,
+    )
+
+
+@router.message(F.text == "📋 Моя запись")
+async def btn_my_booking(message: types.Message) -> None:
+    """Обработчик кнопки 'Моя запись'."""
+    user_id = message.from_user.id
+    await _show_booking(message, user_id)
+
+
+@router.message(F.text == "❌ Отменить запись")
+async def btn_cancel_booking(message: types.Message, state: FSMContext) -> None:
+    """Обработчик кнопки 'Отменить запись'."""
+    user_id = message.from_user.id
+    
+    with SessionLocal() as db:
+        booking: Booking | None = (
+            db.query(Booking)
+            .filter(
+                Booking.user_id == user_id,
+                Booking.status.notin_(["cancelled", "completed"]),
+            )
+            .order_by(Booking.created_at.desc())
+            .first()
+        )
+        
+        if not booking:
+            await message.answer("❌ У вас нет активной записи для отмены.")
+            return
+        
+        # Start cancel flow
+        await state.update_data(booking_id=booking.id)
+        await state.set_state(CancelState.waiting_for_reason)
+        await message.answer(
+            f"Вы уверены, что хотите отменить запись на {booking.day_date} в {booking.slot_time}?\n\n"
+            "Напишите причину отмены:"
+        )
+
+
+@router.message(F.text == "❓ Помощь")
+async def btn_help(message: types.Message) -> None:
+    """Обработчик кнопки 'Помощь'."""
+    await cmd_help(message)
