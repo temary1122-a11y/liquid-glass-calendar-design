@@ -356,15 +356,41 @@ async def cmd_backup(message: types.Message) -> None:
             await message.answer("❌ DATABASE_URL не задан в переменных окружения.")
             return
 
-        # Extract connection details from DATABASE_URL
+        # Parse DATABASE_URL for pg_dump
+        # Format: postgresql://user:password@host:port/database
         if database_url.startswith("postgresql://"):
             db_url = database_url.replace("postgresql://", "")
         else:
             db_url = database_url
 
-        # Run pg_dump
-        command = f"pg_dump {db_url} > {backup_filename}"
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        # Parse connection details
+        try:
+            # Extract user:password@host:port/database
+            if "@" in db_url:
+                auth_part, host_part = db_url.split("@", 1)
+                user, password = auth_part.split(":", 1)
+                
+                if "/" in host_part:
+                    host_port, database = host_part.split("/", 1)
+                else:
+                    host_port = host_part
+                    database = "postgres"
+                
+                if ":" in host_port:
+                    host, port = host_port.split(":", 1)
+                else:
+                    host = host_port
+                    port = "5432"
+            else:
+                await message.answer("❌ Неверный формат DATABASE_URL")
+                return
+
+            # Run pg_dump with explicit host and port
+            command = f"PGPASSWORD={password} pg_dump -h {host} -p {port} -U {user} -d {database} > {backup_filename}"
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        except Exception as parse_exc:
+            await message.answer(f"❌ Ошибка парсинга DATABASE_URL: {parse_exc}")
+            return
 
         if result.returncode == 0:
             file_size = os.path.getsize(backup_filename)
