@@ -112,8 +112,12 @@ function SelectedDayPanel({
         console.log('✅ Opening chat with username:', result.data.username);
         const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
         console.log('Telegram URL:', telegramUrl);
-        // Use window.open to support ?text= parameter (tg.openTelegramLink doesn't support it)
-        window.open(telegramUrl, '_blank');
+        // Use Telegram.WebApp.openTelegramLink for Mini App compatibility
+        if (window.Telegram?.WebApp?.openTelegramLink) {
+          window.Telegram.WebApp.openTelegramLink(telegramUrl);
+        } else {
+          window.open(telegramUrl, '_blank');
+        }
       } else {
         console.log('❌ No open_chat data or missing username');
         console.log('Full result.data:', JSON.stringify(result.data, null, 2));
