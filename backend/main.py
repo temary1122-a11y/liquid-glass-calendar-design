@@ -29,7 +29,7 @@ from database.db import init_db
 from api.routes import booking, profile, admin
 from api.websocket import router as ws_router
 from bot.bot import bot, dp, set_bot_commands
-from bot.handlers.webhook import set_bot_and_dispatcher
+from bot.handlers.webhook import set_bot_and_dispatcher, router as webhook_router
 from bot.scheduler import start_scheduler
 
 # ---------------------------------------------------------------------------
@@ -91,6 +91,7 @@ app.include_router(booking.router)
 app.include_router(profile.router)
 app.include_router(admin.router)
 app.include_router(ws_router)
+app.include_router(webhook_router)
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
