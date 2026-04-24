@@ -448,6 +448,7 @@ function SelectedDayPanel({
                                   console.log('[CONFIRM BUTTON] result.success:', result.success);
                                   console.log('[CONFIRM BUTTON] result.data:', result.data);
                                   if (result.success) {
+                                    alert('✅ Кнопка подтверждения: result.data = ' + JSON.stringify(result.data));
                                     vibrateSuccess();
 
                                     // Check backend response for open_chat
@@ -457,11 +458,14 @@ function SelectedDayPanel({
                                       console.log('[CONFIRM BUTTON] Opening URL:', telegramUrl);
                                       if (window.Telegram?.WebApp?.openTelegramLink) {
                                         window.Telegram.WebApp.openTelegramLink(telegramUrl);
+                                        alert('📱 Открываю чат с клиентом (кнопка)...');
                                       } else {
                                         window.open(telegramUrl, '_blank');
+                                        alert('📱 Открываю чат с клиентом (кнопка)...');
                                       }
                                     } else {
                                       console.log('[CONFIRM BUTTON] No open_chat in result.data, checking local client.username:', client.username);
+                                      alert('⚠️ Нет open_chat в ответе, использую fallback');
                                       // Fallback to local data
                                       if (client.username) {
                                         const confirmationText = [
