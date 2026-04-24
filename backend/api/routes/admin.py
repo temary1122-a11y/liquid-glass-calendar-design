@@ -56,7 +56,7 @@ class SuccessResponse(BaseModel):
     success: bool
     message: str
     booking_id: Optional[int] = None
-    data: Optional[Dict] = None
+    data: Optional[Dict[str, Any]] = None
 
 
 class AddSlotRequest(BaseModel):
