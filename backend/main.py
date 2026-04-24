@@ -74,7 +74,10 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
 # CORS — allow frontend origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://temary1122-a11y.github.io",
+        "https://liquid-glass-calendar-design.onrender.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

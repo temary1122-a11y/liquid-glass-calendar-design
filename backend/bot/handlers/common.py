@@ -3,9 +3,11 @@ Bot command handlers:
   /start      — welcome message + Записаться button (opens Mini App)
   /cancel     — cancels active booking (FSM: ask reason → process)
   /mybooking  — shows current active booking
+  /backup     — admin only: creates database backup
 """
 
 import os
+import subprocess
 from datetime import datetime
 
 import httpx
@@ -296,3 +298,58 @@ async def process_cancel_reason(message: types.Message, state: FSMContext) -> No
         f"🕐 Время: {slot_time}\n\n"
         f"Для новой записи используйте /start"
     )
+
+
+# ---------------------------------------------------------------------------
+# /backup (admin only)
+# ---------------------------------------------------------------------------
+
+
+@router.message(Command("backup"))
+async def cmd_backup(message: types.Message) -> None:
+    """Admin only: creates database backup and sends the file."""
+    # Check if user is admin
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("❌ Только администратор может использовать эту команду.")
+        return
+
+    await message.answer("⏳ Создание бекапа базы данных...")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"backup_{timestamp}.sql"
+
+    try:
+        # Get DATABASE_URL from environment
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if not database_url:
+            await message.answer("❌ DATABASE_URL не задан в переменных окружения.")
+            return
+
+        # Extract connection details from DATABASE_URL
+        if database_url.startswith("postgresql://"):
+            db_url = database_url.replace("postgresql://", "")
+        else:
+            db_url = database_url
+
+        # Run pg_dump
+        command = f"pg_dump {db_url} > {backup_filename}"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        if result.returncode == 0:
+            file_size = os.path.getsize(backup_filename)
+            
+            # Send the backup file to admin
+            with open(backup_filename, "rb") as backup_file:
+                await message.answer_document(
+                    document=backup_file,
+                    caption=f"✅ Бекап создан: {backup_filename} ({file_size} bytes)"
+                )
+            
+            # Clean up the backup file
+            os.remove(backup_filename)
+        else:
+            await message.answer(f"❌ Ошибка создания бекапа: {result.stderr}")
+    except Exception as exc:
+        await message.answer(f"❌ Исключение при создании бекапа: {exc}")
+
