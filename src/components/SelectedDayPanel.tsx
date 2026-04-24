@@ -457,13 +457,13 @@ function SelectedDayPanel({
                                       // Fallback to local data
                                       if (client.username) {
                                         const confirmationText = [
-                                          `✅ Записала!`,
+                                          `✅ Записала`,
                                           ``,
                                           `📅 Дата: ${dateStr}`,
                                           `🕐 Время: ${slot.time}`,
                                           `📍 Адрес: Тихий переулок, 4`,
                                           ``,
-                                          `📹 Посмотреть видео: https://t.me/lashessoto4ka/8`,
+                                          `📹 Видео: https://t.me/lashessoto4ka/8`,
                                         ].join('\n');
 
                                         const username = client.username.replace('@', '');

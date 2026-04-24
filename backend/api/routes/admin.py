@@ -413,11 +413,11 @@ async def update_client(
                     "type": "open_chat",
                     "username": booking.username,
                     "text": (
-                        f"✅ <b>Записала</b>\n\n"
+                        f"✅ Записала\n\n"
                         f"📅 Дата: {booking.day_date}\n"
                         f"🕐 Время: {booking.slot_time}\n"
                         f"📍 Адрес: Тихий переулок, 4\n\n"
-                        f"📹 <a href=\"https://t.me/lashessoto4ka/8\">Посмотреть видео</a>"
+                        f"📹 Видео: https://t.me/lashessoto4ka/8"
                     ),
                 },
             )
