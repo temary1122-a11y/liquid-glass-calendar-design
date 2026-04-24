@@ -447,7 +447,11 @@ function SelectedDayPanel({
                                       console.log('[CONFIRM BUTTON] Backend returned open_chat:', result.data);
                                       const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
                                       console.log('[CONFIRM BUTTON] Opening URL:', telegramUrl);
-                                      window.open(telegramUrl, '_blank');
+                                      if (window.Telegram?.WebApp?.openTelegramLink) {
+                                        window.Telegram.WebApp.openTelegramLink(telegramUrl);
+                                      } else {
+                                        window.open(telegramUrl, '_blank');
+                                      }
                                     } else {
                                       console.log('[CONFIRM BUTTON] No open_chat in result.data, checking local client.username:', client.username);
                                       // Fallback to local data
@@ -467,7 +471,11 @@ function SelectedDayPanel({
                                         console.log('[CONFIRM BUTTON] Fallback - Opening URL:', telegramUrl);
 
                                         setTimeout(() => {
-                                          window.open(telegramUrl, '_blank');
+                                          if (window.Telegram?.WebApp?.openTelegramLink) {
+                                            window.Telegram.WebApp.openTelegramLink(telegramUrl);
+                                          } else {
+                                            window.open(telegramUrl, '_blank');
+                                          }
                                         }, 500);
                                       } else {
                                         console.log('[CONFIRM BUTTON] No username available, cannot open chat');
