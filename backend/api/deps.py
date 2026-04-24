@@ -16,7 +16,7 @@ from fastapi import Header, HTTPException
 
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
 ADMIN_ID: str = os.getenv("ADMIN_ID", "")
-ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "default-secret")
+ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "f9XnzG1Ib0jYz4iZ8PoU518CcF43M1yEz1liGgUDYpA")
 
 
 # ---------------------------------------------------------------------------

@@ -17,7 +17,7 @@ export const BOT_CONFIG = {
 };
 
 export const ADMIN_SECRET_KEY =
-  import.meta.env.VITE_ADMIN_SECRET_KEY || 'default-secret';
+  import.meta.env.VITE_ADMIN_SECRET_KEY || 'f9XnzG1Ib0jYz4iZ8PoU518CcF43M1yEz1liGgUDYpA';
 
 export const CONTACT_INFO = {
   ADMIN_USERNAME: '@SotkaLashes',
