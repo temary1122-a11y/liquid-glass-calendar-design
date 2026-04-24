@@ -422,8 +422,10 @@ function SelectedDayPanel({
                                 whileTap={{ scale: 0.95 }}
                                 onClick={async (e) => {
                                   e.stopPropagation();
+                                  console.log('[CONFIRM BUTTON] Clicked for client:', client);
+                                  console.log('[CONFIRM BUTTON] client.username:', client.username);
                                   const dateStr = format(date, 'yyyy-MM-dd');
-                                  const result = await onUpdateClient({
+                                  const updateData = {
                                     name: client.client_name,
                                     phone: client.phone,
                                     date: dateStr,
@@ -431,30 +433,45 @@ function SelectedDayPanel({
                                     username: client.username,
                                     note: client.note,
                                     status: 'confirmed'
-                                  });
+                                  };
+                                  console.log('[CONFIRM BUTTON] Sending update:', updateData);
+                                  const result = await onUpdateClient(updateData);
+                                  console.log('[CONFIRM BUTTON] Result from backend:', result);
+                                  console.log('[CONFIRM BUTTON] result.success:', result.success);
+                                  console.log('[CONFIRM BUTTON] result.data:', result.data);
                                   if (result.success) {
                                     vibrateSuccess();
 
-                                    // Open chat with client (frontend builds URL independently)
-                                    if (client.username) {
-                                      const confirmationText = [
-                                        `✅ Записала!`,
-                                        ``,
-                                        `📅 Дата: ${dateStr}`,
-                                        `🕐 Время: ${slot.time}`,
-                                        `📍 Адрес: Тихий переулок, 4`,
-                                        ``,
-                                        `📹 Посмотреть видео: https://t.me/lashessoto4ka/8`,
-                                      ].join('\n');
+                                    // Check backend response for open_chat
+                                    if (result.data?.type === 'open_chat') {
+                                      console.log('[CONFIRM BUTTON] Backend returned open_chat:', result.data);
+                                      const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
+                                      console.log('[CONFIRM BUTTON] Opening URL:', telegramUrl);
+                                      window.open(telegramUrl, '_blank');
+                                    } else {
+                                      console.log('[CONFIRM BUTTON] No open_chat in result.data, checking local client.username:', client.username);
+                                      // Fallback to local data
+                                      if (client.username) {
+                                        const confirmationText = [
+                                          `✅ Записала!`,
+                                          ``,
+                                          `📅 Дата: ${dateStr}`,
+                                          `🕐 Время: ${slot.time}`,
+                                          `📍 Адрес: Тихий переулок, 4`,
+                                          ``,
+                                          `📹 Посмотреть видео: https://t.me/lashessoto4ka/8`,
+                                        ].join('\n');
 
-                                      const username = client.username.replace('@', '');
-                                      const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(confirmationText)}`;
+                                        const username = client.username.replace('@', '');
+                                        const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(confirmationText)}`;
+                                        console.log('[CONFIRM BUTTON] Fallback - Opening URL:', telegramUrl);
 
-                                      setTimeout(() => {
-                                        // Use window.open to support ?text= parameter
-                                        // tg.openTelegramLink doesn't support text parameter for security reasons
-                                        window.open(telegramUrl, '_blank');
-                                      }, 500);
+                                        setTimeout(() => {
+                                          window.open(telegramUrl, '_blank');
+                                        }, 500);
+                                      } else {
+                                        console.log('[CONFIRM BUTTON] No username available, cannot open chat');
+                                      }
                                     }
 
                                     onRefresh();

@@ -388,6 +388,12 @@ async def update_client(
 
         db.commit()
 
+        # Debug logging for chat opening
+        print(f"[DEBUG] After commit - booking.username={booking.username}")
+        print(f"[DEBUG] old_status={old_status}, request.status={request.status}")
+        should_open_chat = old_status != "confirmed" and request.status == "confirmed" and booking.username
+        print(f"[DEBUG] should_open_chat={should_open_chat}")
+
         await ws_manager.broadcast(
             {
                 "type": "booking_updated",
