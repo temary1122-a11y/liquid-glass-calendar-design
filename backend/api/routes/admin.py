@@ -388,6 +388,18 @@ async def update_client(
 
         db.commit()
 
+        # Notify admin when booking is confirmed
+        if old_status != "confirmed" and request.status == "confirmed":
+            admin_text = (
+                f"✅ <b>Запись подтверждена</b>\n\n"
+                f"👤 Имя: {booking.client_name}\n"
+                f"📅 Дата: {booking.day_date}\n"
+                f"🕐 Время: {booking.slot_time}\n"
+                f"📞 Телефон: {booking.phone or '—'}\n"
+                f"💬 Telegram: @{booking.username or '—'}"
+            )
+            await _send_telegram_message(ADMIN_ID, admin_text)
+
         # Debug logging for chat opening
         print(f"[DEBUG] After commit - booking.username={booking.username}")
         print(f"[DEBUG] old_status={old_status}, request.status={request.status}")
