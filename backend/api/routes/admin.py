@@ -379,7 +379,8 @@ async def update_client(
             old_status = booking.status
             booking.client_name = request.name
             booking.phone = request.phone
-            booking.username = request.username
+            if request.username is not None:
+                booking.username = request.username
             booking.note = request.note
             if request.status:
                 booking.status = request.status
