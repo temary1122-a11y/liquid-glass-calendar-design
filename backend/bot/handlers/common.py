@@ -343,7 +343,7 @@ async def cmd_backup(message: types.Message) -> None:
         await message.answer("❌ Только администратор может использовать эту команду.")
         return
 
-    await message.answer("⏳ Создание бекапа базы данных...")
+    await message.answer("⏳ Создание бекапа базы данных...\n\n⚠️ Это может занять 1-2 минуты")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_filename = f"backup_{timestamp}.sql"
@@ -385,9 +385,13 @@ async def cmd_backup(message: types.Message) -> None:
                 await message.answer("❌ Неверный формат DATABASE_URL")
                 return
 
-            # Run pg_dump with explicit host and port
+            # Run pg_dump with explicit host and port (60 second timeout)
             command = f"PGPASSWORD={password} pg_dump -h {host} -p {port} -U {user} -d {database} > {backup_filename}"
-            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            print(f"[backup] Running command: pg_dump -h {host} -p {port} -U {user} -d {database}")
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            await message.answer("❌ Таймаут: бекап не создан за 60 секунд. База данных слишком большая или нет доступа.")
+            return
         except Exception as parse_exc:
             await message.answer(f"❌ Ошибка парсинга DATABASE_URL: {parse_exc}")
             return
