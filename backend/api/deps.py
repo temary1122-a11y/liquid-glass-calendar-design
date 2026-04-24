@@ -182,6 +182,12 @@ async def verify_admin(
     Dependency: проверяет авторизацию администратора.
     Поднимает 401/403 если данные невалидны.
     """
+    # DEV MODE: Skip auth for local testing
+    import os
+    if os.getenv("DEV_MODE") == "true":
+        print("[DEV] Admin auth bypassed")
+        return True
+    
     if not x_admin_id or not x_admin_signature:
         raise HTTPException(status_code=401, detail="Admin credentials required")
 
