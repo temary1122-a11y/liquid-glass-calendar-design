@@ -91,7 +91,6 @@ app.include_router(booking.router)
 app.include_router(profile.router)
 app.include_router(admin.router)
 app.include_router(ws_router)
-app.include_router(webhook_router)
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown
