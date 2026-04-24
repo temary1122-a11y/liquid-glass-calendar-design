@@ -8,7 +8,7 @@ import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSwipeable } from 'react-swipeable';
-import { apiClient, type AdminWorkDay, type UserBooking } from '../api/client';
+import { apiClient, type AdminWorkDay } from '../api/client';
 import { vibrateLight } from '../utils/vibration';
 import SelectedDayPanel from './SelectedDayPanel';
 
@@ -144,10 +144,6 @@ export default function AdminSchedulePanel() {
   const [workDays, setWorkDays] = useState<Record<string, AdminWorkDay>>({});
   const [activeTab, setActiveTab] = useState<'calendar' | 'clients'>('calendar');
 
-  // Archive state
-  const [archiveOpen, setArchiveOpen] = useState(false);
-  const [archiveData, setArchiveData] = useState<UserBooking[]>([]);
-
   // Calendar navigation state
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -158,15 +154,6 @@ export default function AdminSchedulePanel() {
       setWorkDays(data);
     } catch {
       console.error('Failed to load admin data');
-    }
-  }, []);
-
-  const loadArchive = useCallback(async () => {
-    try {
-      const data = await apiClient.getArchive();
-      setArchiveData(data);
-    } catch {
-      console.error('Failed to load archive data');
     }
   }, []);
 
@@ -468,88 +455,9 @@ export default function AdminSchedulePanel() {
               )}
             </div>
 
-            {/* Archive button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={async () => {
-                setArchiveOpen(true);
-                await loadArchive();
-              }}
-              className="w-full liquid-glass rounded-2xl p-4 text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-2xl">📁</div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[#3d2b1f]">Архив записей</h3>
-                  <p className="text-xs text-[#9e8476] mt-0.5">Завершенные и отмененные записи</p>
-                </div>
-              </div>
-            </motion.button>
           </motion.div>
         </AnimatePresence>
       )}
-
-      {/* ── Archive Modal ── */}
-      <AnimatePresence>
-        {archiveOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setArchiveOpen(false)}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: getAnimationDuration(0.15) }}
-              onClick={(e) => e.stopPropagation()}
-              className="liquid-glass rounded-2xl p-4 max-w-md w-full max-h-[80vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-[#3d2b1f]">📁 Архив записей</h3>
-                <button
-                  onClick={() => setArchiveOpen(false)}
-                  className="text-[#9e8476] hover:text-[#3d2b1f] transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {archiveData.length === 0 ? (
-                <p className="text-xs text-[#9e8476] text-center py-8">Архив пуст</p>
-              ) : (
-                <div className="space-y-3">
-                  {archiveData.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="p-3 bg-white/30 rounded-xl"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-[#3d2b1f]">{booking.client_name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          booking.status === 'completed'
-                            ? 'bg-[#2e7d5e]/20 text-[#2e7d5e]'
-                            : 'bg-[#ef4444]/20 text-[#ef4444]'
-                        }`}>
-                          {booking.status === 'completed' ? 'Завершена' : 'Отменена'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#9e8476]">{booking.day_date} в {booking.slot_time}</p>
-                      {booking.phone && <p className="text-xs text-[#9e8476] mt-1">{booking.phone}</p>}
-                      {booking.cancel_reason && (
-                        <p className="text-xs text-[#ef4444] mt-1">Причина: {booking.cancel_reason}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
