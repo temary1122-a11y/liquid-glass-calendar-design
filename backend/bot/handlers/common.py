@@ -20,7 +20,7 @@ from database.db import Booking, SessionLocal, TimeSlot
 router = Router()
 
 ADMIN_ID: int = int(os.getenv("ADMIN_ID", "0"))
-MINI_APP_URL: str = os.getenv("MINI_APP_URL", "https://your-mini-app.vercel.app")
+MINI_APP_URL: str = os.getenv("MINI_APP_URL", "https://temary1122-a11y.github.io/liquid-glass-calendar-design/")
 
 
 # ---------------------------------------------------------------------------
