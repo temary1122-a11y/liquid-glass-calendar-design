@@ -346,7 +346,7 @@ export default function AdminSchedulePanel() {
                         booking: s.booking!
                       }))
                   ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((booking) => {
-                    const dateObj = new Date(booking.date);
+                    const dateObj = new Date(`${booking.date}T${booking.time}`);
                     return (
                       <div key={`${booking.date}-${booking.time}`} className="flex items-center justify-between p-3 bg-white/30 rounded-xl">
                         <div className="flex-1">
@@ -426,7 +426,7 @@ export default function AdminSchedulePanel() {
                         booking: s.booking!
                       }))
                   ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((booking) => {
-                    const dateObj = new Date(booking.date);
+                    const dateObj = new Date(`${booking.date}T${booking.time}`);
                     return (
                       <div key={`${booking.date}-${booking.time}`} className="p-3 bg-white/30 rounded-xl">
                         <div className="flex items-center justify-between mb-2">
