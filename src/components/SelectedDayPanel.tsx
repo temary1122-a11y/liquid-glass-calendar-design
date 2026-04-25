@@ -80,8 +80,6 @@ function SelectedDayPanel({
 
   // Сохранение изменений
   const handleSave = async () => {
-    console.log('handleSave called, editingSlot:', editingSlot);
-    console.log('editForm:', editForm);
     if (!editingSlot) return;
 
     setIsSaving(true);
@@ -95,23 +93,13 @@ function SelectedDayPanel({
       note: editForm.note || undefined
     });
 
-    console.log('onUpdateClient result:', result);
-    console.log('result.success:', result.success);
-    console.log('result.data:', result.data);
-    console.log('result.message:', result.message);
-
     if (result.success) {
       vibrateSuccess();
       setEditingSlot(null);
 
       // Check if we need to open chat with client
-      console.log('Checking for open_chat data:', result.data);
-      console.log('result.data?.type:', result.data?.type);
-      console.log('result.data?.username:', result.data?.username);
       if (result.data && result.data.type === 'open_chat') {
-        console.log('✅ Opening chat with username:', result.data.username);
         const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
-        console.log('Telegram URL:', telegramUrl);
         // Use Telegram.WebApp.openTelegramLink for Mini App compatibility
         if (window.Telegram?.WebApp?.openTelegramLink) {
           window.Telegram.WebApp.openTelegramLink(telegramUrl);
@@ -119,12 +107,9 @@ function SelectedDayPanel({
           window.open(telegramUrl, '_blank');
         }
       } else {
-        console.log('❌ No open_chat data or missing username');
-        console.log('Full result.data:', JSON.stringify(result.data, null, 2));
+        // Delay refresh to allow chat to open first
+        setTimeout(onRefresh, 300);
       }
-
-      // Delay refresh to allow chat to open first
-      setTimeout(onRefresh, 300);
     } else {
       vibrateError();
     }
@@ -140,9 +125,7 @@ function SelectedDayPanel({
 
   // Добавление слота
   const handleAddSlot = async (time: string) => {
-    console.log('handleAddSlot called with:', time);
     const result = await onAddSlot(time);
-    console.log('onAddSlot result:', result);
 
     if (result.success) {
       vibrateSuccess();
@@ -152,16 +135,12 @@ function SelectedDayPanel({
     } else {
       // Если рабочий день не найден, создаем его и повторяем
       if (result.message?.includes('не найден') || result.message?.includes('not found')) {
-        console.log('Work day not found, creating it...');
         const dateStr = format(date, 'yyyy-MM-dd');
         const createResult = await onCreateWorkDay(dateStr);
-        console.log('Create work day result:', createResult);
 
         if (createResult.success) {
           // Повторяем попытку добавления слота
-          console.log('Retrying add slot...');
           const retryResult = await onAddSlot(time);
-          console.log('Retry add slot result:', retryResult);
 
           if (retryResult.success) {
             vibrateSuccess();
@@ -261,9 +240,7 @@ function SelectedDayPanel({
                 whileTap={{ scale: 0.98 }}
                 onClick={async () => {
                   if (newSlotTime) {
-                    console.log('Adding slot:', newSlotTime);
-                    const result = await handleAddSlot(newSlotTime);
-                    console.log('Add slot result:', result);
+                    await handleAddSlot(newSlotTime);
                   }
                 }}
                 disabled={!newSlotTime}
@@ -333,9 +310,7 @@ function SelectedDayPanel({
                     />
                     <div className="flex gap-2">
                       <button
-                        onMouseDown={() => console.log('Save button onMouseDown, disabled:', isSaving || !editForm.name.trim(), 'name:', editForm.name)}
                         onClick={(e) => {
-                          console.log('Save button onClick triggered');
                           e.stopPropagation();
                           handleSave();
                         }}
@@ -426,8 +401,6 @@ function SelectedDayPanel({
                                 whileTap={{ scale: 0.95 }}
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  console.log('[CONFIRM BUTTON] Clicked for client:', client);
-                                  console.log('[CONFIRM BUTTON] client.username:', client.username);
                                   const dateStr = format(date, 'yyyy-MM-dd');
                                   const updateData = {
                                     name: client.client_name,
@@ -438,26 +411,19 @@ function SelectedDayPanel({
                                     note: client.note,
                                     status: 'confirmed'
                                   };
-                                  console.log('[CONFIRM BUTTON] Sending update:', updateData);
                                   const result = await onUpdateClient(updateData);
-                                  console.log('[CONFIRM BUTTON] Result from backend:', result);
-                                  console.log('[CONFIRM BUTTON] result.success:', result.success);
-                                  console.log('[CONFIRM BUTTON] result.data:', result.data);
                                   if (result.success) {
                                     vibrateSuccess();
 
                                     // Check backend response for open_chat
                                     if (result.data?.type === 'open_chat') {
-                                      console.log('[CONFIRM BUTTON] Backend returned open_chat:', result.data);
                                       const telegramUrl = `https://t.me/${result.data.username}?text=${encodeURIComponent(result.data.text)}`;
-                                      console.log('[CONFIRM BUTTON] Opening URL:', telegramUrl);
                                       if (window.Telegram?.WebApp?.openTelegramLink) {
                                         window.Telegram.WebApp.openTelegramLink(telegramUrl);
                                       } else {
                                         window.open(telegramUrl, '_blank');
                                       }
                                     } else {
-                                      console.log('[CONFIRM BUTTON] No open_chat in result.data, checking local client.username:', client.username);
                                       // Fallback to local data
                                       if (client.username) {
                                         const confirmationText = [
@@ -472,7 +438,6 @@ function SelectedDayPanel({
 
                                         const username = client.username.replace('@', '');
                                         const telegramUrl = `https://t.me/${username}?text=${encodeURIComponent(confirmationText)}`;
-                                        console.log('[CONFIRM BUTTON] Fallback - Opening URL:', telegramUrl);
 
                                         setTimeout(() => {
                                           if (window.Telegram?.WebApp?.openTelegramLink) {
@@ -481,8 +446,6 @@ function SelectedDayPanel({
                                             window.open(telegramUrl, '_blank');
                                           }
                                         }, 500);
-                                      } else {
-                                        console.log('[CONFIRM BUTTON] No username available, cannot open chat');
                                       }
                                     }
 

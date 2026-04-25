@@ -38,7 +38,6 @@ function getSlotsForDate(date: Date, workDays: Record<string, AdminWorkDay>): st
 function getClientsForDate(date: Date, workDays: Record<string, AdminWorkDay>): Array<{time: string, status: string}> {
   const formattedDate = format(date, 'yyyy-MM-dd');
   const workDay = workDays[formattedDate];
-  console.log('getClientsForDate date:', formattedDate, 'workDay:', workDay);
   if (!workDay) return [];
   const clients = workDay.slots
     .filter(s => s.is_booked && s.booking)
@@ -46,7 +45,6 @@ function getClientsForDate(date: Date, workDays: Record<string, AdminWorkDay>): 
       time: s.time,
       status: s.booking!.status
     }));
-  console.log('clients for date:', clients);
   return clients;
 }
 

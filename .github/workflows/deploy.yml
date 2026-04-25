@@ -38,7 +38,6 @@ jobs:
         env:
           VITE_BACKEND_URL: https://liquid-glass-calendar-design.onrender.com
           VITE_WS_URL: wss://liquid-glass-calendar-design.onrender.com/ws
-          VITE_BOT_USERNAME: YourLashess_bot
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

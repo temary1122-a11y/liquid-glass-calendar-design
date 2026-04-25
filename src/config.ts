@@ -13,7 +13,6 @@ export const WS_URL =
 export const BOT_CONFIG = {
   ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '1834686956',
   BOT_TOKEN: '8646567713:AAGaYReANb-Ua4NSoHIOlk06GKKExL-DS6M',
-  BOT_USERNAME: import.meta.env.VITE_BOT_USERNAME || 'YourLashesBot',
 };
 
 export const ADMIN_SECRET_KEY =

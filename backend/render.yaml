@@ -6,17 +6,15 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: BOT_TOKEN
-        value: 8646567713:AAGaYReANb-Ua4NSoHIOlk06GKKExL-DS6M
+        sync: false
       - key: ADMIN_ID
-        value: 1834686956
+        sync: false
       - key: ADMIN_SECRET_KEY
-        value: default-secret
+        sync: false
       - key: DATABASE_URL
-        value: postgresql://postgres:LE315K4b80hrPd0f@db.yhfrygwnvtyutsakouoq.supabase.co:5432/postgres
+        sync: false
       - key: WEBHOOK_URL
-        value: https://liquid-glass-calendar-design.onrender.com/webhook
+        sync: false
       - key: MINI_APP_URL
-        value: https://temary1122-a11y.github.io/liquid-glass-calendar-design
-      - key: BOT_USERNAME
-        value: YourLashess_bot
+        sync: false
     healthCheckPath: /health

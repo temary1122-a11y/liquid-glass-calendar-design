@@ -4,7 +4,6 @@ interface ImportMetaEnv {
   readonly VITE_BACKEND_URL: string;
   readonly VITE_WS_URL: string;
   readonly VITE_ADMIN_ID: string;
-  readonly VITE_BOT_USERNAME: string;
   readonly VITE_ADMIN_SECRET_KEY: string;
 }
 

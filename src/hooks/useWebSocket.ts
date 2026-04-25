@@ -33,7 +33,6 @@ export function useWebSocket(url: string): UseWebSocketReturn {
       ws.onopen = () => {
         setIsConnected(true);
         reconnectAttempts.current = 0;
-        console.log('WebSocket connected');
       };
 
       ws.onmessage = (event) => {
