@@ -146,7 +146,7 @@ async def cancel_booking(
                 "data": {
                     "booking_id": booking.id,
                     "date": work_day.day_date if work_day else None,
-                    "time": slot.time if slot else None,
+                    "time": slot.slot_time if slot else None,
                     "reason": request.reason,
                 },
             }

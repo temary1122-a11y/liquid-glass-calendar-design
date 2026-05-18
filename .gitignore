@@ -47,6 +47,7 @@ NGROK_TOKEN.txt
 build/
 
 # MCP Server Files (API Keys)
+mcp_config.json
 mcp_ai_server.py
 mcp_*.py
 MULTI_AGENT_ARCHITECTURE.md

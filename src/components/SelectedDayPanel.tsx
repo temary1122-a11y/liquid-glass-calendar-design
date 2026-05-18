@@ -231,6 +231,7 @@ function SelectedDayPanel({
             <div className="flex gap-2">
               <input
                 type="time"
+                step="900"
                 value={newSlotTime}
                 onChange={(e) => setNewSlotTime(e.target.value)}
                 className="liquid-glass-input flex-1 px-3 py-2 rounded-xl text-[#3d2b1f] text-sm"

@@ -56,7 +56,12 @@ function getStatusBadge(booking: UserBooking) {
 }
 
 function isActiveBooking(booking: UserBooking): boolean {
-  return !booking.is_cancelled && booking.status !== 'cancelled' && booking.status !== 'completed';
+  if (booking.is_cancelled || booking.status === 'cancelled' || booking.status === 'completed') {
+    return false;
+  }
+  // Get current date in YYYY-MM-DD format in user's timezone
+  const todayStr = new Date().toISOString().slice(0, 10);
+  return booking.day_date >= todayStr;
 }
 
 export default function ClientProfile({

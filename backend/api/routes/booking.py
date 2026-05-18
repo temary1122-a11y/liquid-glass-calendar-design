@@ -141,11 +141,13 @@ async def create_booking(
 
     # Check for existing active booking for this user
     if booking.user_id:
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
         existing_booking = (
             db.query(Booking)
             .filter(
                 Booking.user_id == booking.user_id,
                 Booking.status.notin_(["cancelled", "completed"]),
+                Booking.day_date >= today_str,  # Filter only future visits
             )
             .first()
         )

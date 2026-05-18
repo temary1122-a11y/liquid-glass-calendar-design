@@ -368,7 +368,7 @@ async def update_client(
                 username=request.username,
                 note=request.note,
                 status=request.status or "pending",
-                created_at=datetime.utcnow(),
+                created_at=datetime.utcnow().isoformat(),
             )
             slot.is_booked = 1
             db.add(booking)

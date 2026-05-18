@@ -88,6 +88,27 @@ async def send_reminders() -> None:
     logger.info("Reminder job done. Sent: %d", reminders_sent)
 
 
+async def auto_complete_past_bookings() -> None:
+    """
+    Automatically complete past bookings (day_date < today) that are still pending or confirmed.
+    Runs once a day.
+    """
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    with SessionLocal() as db:
+        past_bookings = (
+            db.query(Booking)
+            .filter(
+                Booking.day_date < today_str,
+                Booking.status.in_(["pending", "confirmed"])
+            )
+            .all()
+        )
+        for b in past_bookings:
+            b.status = "completed"
+        db.commit()
+        logger.info("Auto-completed %d past bookings", len(past_bookings))
+
+
 def start_scheduler() -> None:
     """Register and start the APScheduler."""
     scheduler.add_job(
@@ -98,5 +119,13 @@ def start_scheduler() -> None:
         replace_existing=True,
         misfire_grace_time=300,
     )
+    scheduler.add_job(
+        auto_complete_past_bookings,
+        trigger="cron",
+        hour=3,  # 3 AM daily
+        minute=0,
+        id="auto_complete_bookings",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("Scheduler started — reminder job runs every hour")
+    logger.info("Scheduler started — reminder job runs every hour, auto-complete at 3 AM daily")
