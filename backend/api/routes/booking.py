@@ -141,7 +141,7 @@ async def create_booking(
 
     # Check for existing active booking for this user
     if booking.user_id:
-        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        today_str = datetime.now().strftime("%Y-%m-%d")
         existing_booking = (
             db.query(Booking)
             .filter(
@@ -173,6 +173,22 @@ async def create_booking(
         slot.is_booked = 1  # Integer instead of Boolean
         db.commit()
         db.refresh(new_booking)
+
+        # Отправка уведомления админу в личку Telegram
+        from bot.bot import bot
+        from api.deps import ADMIN_ID
+        import asyncio
+        
+        if ADMIN_ID:
+            msg_text = (
+                f"🔔 <b>Новая запись!</b>\n\n"
+                f"👤 Имя: {booking.name}\n"
+                f"📱 Телефон: {booking.phone or 'Не указан'}\n"
+                f"📅 Дата: {booking.date}\n"
+                f"⏰ Время: {booking.time}"
+            )
+            # Запускаем отправку асинхронно, чтобы не тормозить ответ API
+            asyncio.create_task(bot.send_message(chat_id=ADMIN_ID, text=msg_text, parse_mode="HTML"))
 
         # Broadcast real-time update to all WebSocket clients
         await ws_manager.broadcast(

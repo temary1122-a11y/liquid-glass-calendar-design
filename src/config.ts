@@ -10,14 +10,6 @@ export const WS_URL =
   import.meta.env.VITE_WS_URL ||
   'wss://liquid-glass-calendar-design.onrender.com/ws';
 
-export const BOT_CONFIG = {
-  ADMIN_ID: import.meta.env.VITE_ADMIN_ID || '1834686956',
-  BOT_TOKEN: '8646567713:AAGaYReANb-Ua4NSoHIOlk06GKKExL-DS6M',
-};
-
-export const ADMIN_SECRET_KEY =
-  import.meta.env.VITE_ADMIN_SECRET_KEY || 'f9XnzG1Ib0jYz4iZ8PoU518CcF43M1yEz1liGgUDYpA';
-
 export const CONTACT_INFO = {
   ADMIN_USERNAME: '@SotkaLashes',
   ADDRESS: 'Тихий переулок, 4',

@@ -320,3 +320,22 @@ body {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
+
+/* ─── Оптимизация производительности для мобильных экранов ─── */
+@media (max-width: 768px) {
+  .liquid-glass,
+  .liquid-glass-dark,
+  .liquid-glass-nav,
+  .liquid-glass-calendar,
+  .liquid-glass-input,
+  .slot-btn {
+    backdrop-filter: blur(8px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+    box-shadow: 0 2px 8px rgba(180, 120, 80, 0.05) !important;
+    background: rgba(255, 255, 255, 0.65) !important;
+  }
+  
+  .liquid-glass-calendar.selected {
+    box-shadow: 0 4px 15px rgba(196, 150, 122, 0.15) !important;
+  }
+}

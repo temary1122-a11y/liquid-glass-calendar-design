@@ -2,33 +2,20 @@
 // src/api/client.ts — HTTP клиент для работы с backend API
 // ============================================================
 
-import { BACKEND_URL, BOT_CONFIG, ADMIN_SECRET_KEY } from '../config';
-
-// Simple pseudo-HMAC for admin auth (matches backend)
-function createAdminSignature(adminId: string): string {
-  const secretBytes = new TextEncoder().encode(ADMIN_SECRET_KEY);
-  const messageBytes = new TextEncoder().encode(adminId);
-  let hash = 0;
-  const combined = new Uint8Array([...secretBytes, ...messageBytes]);
-  for (let i = 0; i < combined.length; i++) {
-    hash = ((hash << 5) - hash) + combined[i];
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(64, '0').slice(0, 64);
-}
-
-function getAdminHeaders(): Record<string, string> {
-  const adminId = BOT_CONFIG.ADMIN_ID;
-  return {
-    'Content-Type': 'application/json',
-    'x-admin-id': adminId,
-    'x-admin-signature': createAdminSignature(adminId),
-  };
-}
+import { BACKEND_URL } from '../config';
 
 function getUserInitData(): string {
   return window.Telegram?.WebApp?.initData || '';
 }
+
+function getAdminHeaders(): Record<string, string> {
+  const initData = getUserInitData();
+  return {
+    'Content-Type': 'application/json',
+    ...(initData ? { 'x-init-data': initData } : {}),
+  };
+}
+
 
 // ─── Types ───────────────────────────────────────────────────
 
