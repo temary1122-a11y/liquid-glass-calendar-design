@@ -8,7 +8,7 @@ import { Sparkles, Settings, Calendar as CalendarIcon, Wifi, WifiOff } from 'luc
 import Calendar from './components/Calendar';
 import AdminSchedulePanel from './components/AdminSchedulePanel';
 import ClientProfile from './components/ClientProfile';
-import { SOCIAL_LINKS, BOT_CONFIG } from './config';
+import { SOCIAL_LINKS } from './config';
 import { vibrateMedium, vibrateLight } from './utils/vibration';
 import { useWebSocket } from './hooks/useWebSocket';
 
@@ -40,7 +40,7 @@ export default function App() {
     if (user) {
       setUserId(user.id);
       // Check if user is admin
-      const adminId = parseInt(BOT_CONFIG.ADMIN_ID);
+      const adminId = parseInt(import.meta.env.VITE_ADMIN_ID || '0');
       setIsAdmin(user.id === adminId);
       
       // Only set admin view if user is admin OR admin param is true (for testing)
