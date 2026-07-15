@@ -16,7 +16,7 @@ load_dotenv()
 # Required
 # ---------------------------------------------------------------------------
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip().replace("\n", "").replace("\r", "")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN is required in environment variables")
 
@@ -38,6 +38,8 @@ if not ADMIN_SECRET_KEY:
     )
 
 DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+# Strip invisible characters that sometimes sneak in from Render dashboard copy-paste
+DATABASE_URL = DATABASE_URL.strip().replace("\n", "").replace("\r", "")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is required in environment variables")
 
