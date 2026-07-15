@@ -35,7 +35,7 @@ bot = Bot(
 
 dp = Dispatcher(storage=MemoryStorage())
 
-# Register routers — ORDER MATTERS (first match wins)
+# Register routers -- ORDER MATTERS (first match wins)
 dp.include_router(common_router)       # /start, /cancel, /help, button text, callbacks
 dp.include_router(admin_voice_router)  # /vc, /bulk, voice, bulk auto-detect, admin text cmd
 
