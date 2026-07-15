@@ -15,6 +15,8 @@ and only text commands work.
 import json
 import logging
 import os
+import re
+from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
@@ -40,11 +42,19 @@ FALLBACK_EXTRACTION_MODEL = "llama-3.3-70b-versatile"
 TRANSCRIPTION_TIMEOUT = 60.0  # voice takes longer
 EXTRACTION_TIMEOUT = 15.0
 
+# Russian month names for date parsing
+_RU_MONTHS_MAP = {
+    'января': 1, 'январь': 1, 'февраля': 2, 'февраль': 2,
+    'марта': 3, 'март': 3, 'апреля': 4, 'апрель': 4,
+    'мая': 5, 'май': 5, 'июня': 6, 'июнь': 6,
+    'июля': 7, 'июль': 7, 'августа': 8, 'август': 8,
+    'сентября': 9, 'сентябрь': 9, 'октября': 10, 'октябрь': 10,
+    'ноября': 11, 'ноябрь': 11, 'декабря': 12, 'декабрь': 12,
+}
 
 # ---------------------------------------------------------------------------
 # Voice transcription
 # ---------------------------------------------------------------------------
-
 
 def _fix_ext(name: str) -> str:
     """Telegram sends .oga — Groq expects .ogg."""
@@ -102,72 +112,98 @@ async def transcribe_voice(audio_path: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# Command extraction (NLP)
+# Command extraction (NLP) via Groq LLM
 # ---------------------------------------------------------------------------
 
 _EXTRACTION_SYSTEM_PROMPT = """Ты — парсер голосовых команд администратора бьюти-салона.
-Извлеки из текста команды структурированные данные.
+Извлеки из текста команды структурированные данные. Отвечай ТОЛЬКО валидным JSON.
 
-Текущая дата: {today}
+Реальные данные:
+- Сегодня: {today}
+- Завтра: {tomorrow}
+- Послезавтра: {day_after_tomorrow}
+- Текущий месяц: {current_month}
 
-Правила:
-- Если клиент говорит "запиши/забронируй/поставь ИМЯ на ВРЕМЯ ЧИСЛА" → action="book"
-- Если "отмени/удали/сними запись ИМЯ" → action="cancel"
-- Если "покажи/посмотри/кто записан/статус на ДАТУ" → action="check"
-- Если "открой/закрой/выходной ДАТУ" → action="set_day_off" или "set_day_on"
-- Непонятная команда → action="unknown"
+Команды и их значения (action):
+- book — создать/добавить запись. Триггеры: "запиши", "забронируй", "поставь", "добавь",
+  "добавь окно/окошко", "новое окно/окошко", "создай запись", "открой окно"
+- cancel — отменить запись. Триггеры: "отмени", "удали", "сними", "убер"
+- check — посмотреть записи. Триггеры: "покажи", "посмотри", "кто записан", "статус", "что там"
+- set_day_off — закрыть день. Триггеры: "выходной", "закрой день", "нерабочий день"
+- set_day_on — открыть день. Триггеры: "открой день", "рабочий день"
+- unknown — непонятная команда
 
-Даты:
+Даты (ВСЕГДА в YYYY-MM-DD):
 - "сегодня" → {today}
 - "завтра" → {tomorrow}
 - "послезавтра" → {day_after_tomorrow}
-- "21 числа"/"21 июля"/"21.07" → YYYY-MM-DD
-- Если месяц не указан — используй текущий месяц ({current_month})
-- Если число не число месяца — игнорируй (action="unknown")
+- "15 числа" (без месяца) → 15-е число ТЕКУЩЕГО месяца ({current_month}-15)
+- "15 июля" → 15 июля этого года
+- "15.07" → 15 июля
+- "21 числа следующего месяца" → {next_month}-21
+- ЛЮБОЕ число без месяца = текущий месяц ({current_month})
+- ЛЮБОЕ число с месяцем = указанный месяц этого года
 
-Время:
-- "12:00"/"в 12"/"на 12"/"12 часов" → "HH:MM"
-- Всегда в формате HH:MM (с ведущим нулём)
+Время (ВСЕГДА в HH:MM):
+- "12:00", "12 часов", "в 12", "на 12", "к 12" → "12:00"
+- "3 часа дня", "15 часов", "3 дня" → "15:00"
+- "полдень" → "12:00", "полночь" → "00:00"
+- "в 9 утра", "9 часов утра" → "09:00"
+- "в 6 вечера", "6 часов вечера" → "18:00"
+- Любое время с "дня/вечера/утра/ночи" — конвертируй в 24-часовой формат
 
-Верни ТОЛЬКО валидный JSON, без markdown, без комментариев:
-{{
-  "action": "book" | "cancel" | "check" | "set_day_off" | "set_day_on" | "unknown",
-  "client_name": "имя клиента или null",
-  "date": "YYYY-MM-DD или null",
-  "time": "HH:MM или null",
-  "reason": "причина или null",
-  "confidence": "high" | "medium" | "low"
-}}"""
+Имя клиента (client_name):
+- Извлекай имя из фраз: "запиши Алину", "Алина на 12", "добавь Диму", "Настю запиши"
+- Игнорируй: "меня", "клиента", "человека" — это не имена
+- Если нет имени — null
+- Всегда с большой буквы
+
+Примеры:
+
+"запиши Алину на 12:00 21 числа" →
+{{"action":"book","client_name":"Алина","date":"{current_month}-21","time":"12:00","confidence":"high"}}
+
+"добавь окно завтра на 3 часа дня" →
+{{"action":"book","client_name":null,"date":"{tomorrow}","time":"15:00","confidence":"high"}}
+
+"новое окошко на 16:00 15 числа" →
+{{"action":"book","client_name":null,"date":"{current_month}-15","time":"16:00","confidence":"high"}}
+
+"запиши Диму 15 числа на 16 часов" →
+{{"action":"book","client_name":"Дима","date":"{current_month}-15","time":"16:00","confidence":"high"}}
+
+"запиши Настю на 3 часа дня" →
+{{"action":"book","client_name":"Настя","date":null,"time":"15:00","confidence":"medium"}}
+
+"кто записан 21 числа" →
+{{"action":"check","client_name":null,"date":"{current_month}-21","time":null,"confidence":"high"}}
+
+Верни ТОЛЬКО JSON, без markdown, без комментариев."""
 
 
 async def extract_command(voice_text: str) -> dict:
     """
     Parse a natural-language admin command into structured data.
     Uses Llama 3.1 8B Instant (primary) with fallback to Llama 3.3 70B.
-
-    Args:
-        voice_text: Raw transcribed text from voice or typed command
-
-    Returns:
-        Parsed command dict with action/client_name/date/time
+    Falls back to regex if both LLMs fail or Groq is unavailable.
     """
     if not GROQ_API_KEY:
-        logger.warning("GROQ_API_KEY not set — cannot extract command")
-        return _fallback_regex_extraction(voice_text)
-
-    from datetime import datetime, timedelta
+        logger.info("GROQ_API_KEY not set — using regex fallback")
+        return _regex_extraction(voice_text)
 
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
     tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
     day_after_tomorrow = (now + timedelta(days=2)).strftime("%Y-%m-%d")
     current_month = now.strftime("%Y-%m")
+    next_month = (now.replace(day=1) + timedelta(days=32)).strftime("%Y-%m")
 
     system_prompt = _EXTRACTION_SYSTEM_PROMPT.format(
         today=today,
         tomorrow=tomorrow,
         day_after_tomorrow=day_after_tomorrow,
         current_month=current_month,
+        next_month=next_month,
     )
 
     # Try primary model first
@@ -188,7 +224,7 @@ async def extract_command(voice_text: str) -> dict:
         )
 
     if result is None:
-        return _fallback_regex_extraction(voice_text)
+        return _regex_extraction(voice_text)
 
     return result
 
@@ -245,93 +281,52 @@ async def _call_llm(
 
 
 # ---------------------------------------------------------------------------
-# Fallback: regex-based extraction (when Groq API is unavailable)
+# Regex-based extraction (fallback when Groq API is unavailable)
 # ---------------------------------------------------------------------------
 
-
-def _fallback_regex_extraction(text: str) -> dict:
+def _regex_extraction(text: str) -> dict:
     """
-    Simple regex-based command extraction as fallback.
-    Handles the most common patterns without any API calls.
+    Regex-based command extraction. Handles common patterns without API calls.
+    Robust enough for realistic Russian voice commands.
     """
-    import re
-    from datetime import datetime, timedelta
-
     text_lower = text.lower().strip()
 
-    # Detect action
-    if any(w in text_lower for w in ["запиш", "заброн", "постав", "добав", "созда"]):
+    # ── Action detection ──
+    if any(w in text_lower for w in ["запиш", "заброн", "постав", "добавь", "окно", "окошко", "создай запис", "открой окн"]):
         action = "book"
     elif any(w in text_lower for w in ["отмен", "удал", "сним", "убер"]):
         action = "cancel"
-    elif any(w in text_lower for w in ["покаж", "посмотр", "кто", "статус", "записан"]):
+    elif any(w in text_lower for w in ["покаж", "посмотр", "кто", "статус", "записан", "что там"]):
         action = "check"
-    elif any(w in text_lower for w in ["выходной", "закрыт", "нерабоч"]):
+    elif any(w in text_lower for w in ["выходной", "закрой", "закрыт", "нерабоч"]):
         action = "set_day_off"
-    elif any(w in text_lower for w in ["открыт", "рабоч"]):
+    elif any(w in text_lower for w in ["открой", "рабоч"]):
         action = "set_day_on"
     else:
         action = "unknown"
 
-    # Extract time
-    time_match = re.search(r'(\d{1,2})[:\.](\d{2})', text)
-    if not time_match:
-        time_match = re.search(r'(?:в|на|к)\s*(\d{1,2})\b(?!\d|\.\d)', text)
-    time_str = None
-    if time_match:
-        hour = int(time_match.group(1))
-        minute = int(time_match.group(2)) if time_match.lastindex and time_match.lastindex >= 2 else 0
-        time_str = f"{hour:02d}:{minute:02d}"
-
-    # Extract date
     now = datetime.now()
-    today_str = now.strftime("%Y-%m-%d")
-    tomorrow_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
-    day_after_tomorrow_str = (now + timedelta(days=2)).strftime("%Y-%m-%d")
+    today = now.strftime("%Y-%m-%d")
+    tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+    day_after = (now + timedelta(days=2)).strftime("%Y-%m-%d")
 
+    # ── Time extraction ──
+    time_str = _extract_time(text_lower)
+
+    # ── Date extraction ──
     date_str = None
     if any(w in text_lower for w in ["сегодня"]):
-        date_str = today_str
+        date_str = today
     elif any(w in text_lower for w in ["завтра"]):
-        date_str = tomorrow_str
+        date_str = tomorrow
     elif any(w in text_lower for w in ["послезавтра"]):
-        date_str = day_after_tomorrow_str
+        date_str = day_after
     else:
-        # Match "21 числа", "21 июля", "21.07", "21/07"
-        date_match = re.search(r'(\d{1,2})\s*(?:числа|\.(\d{1,2})|/(\d{1,2}))', text)
-        if date_match:
-            day = int(date_match.group(1))
-            month = date_match.group(2) or date_match.group(3)
-            if month:
-                month = int(month)
-            else:
-                month = now.month
-            year = now.year
-            # If month < current month, assume next year
-            if month < now.month:
-                year += 1
-            date_str = f"{year}-{month:02d}-{day:02d}"
+        # "15 числа", "21 июля", "15.07"
+        date_str = _extract_date(text_lower, now)
 
-    # Extract client name
-    name = None
-    # Pattern: "запиши Алину", "Алина на 12"
-    name_match = re.search(
-        r'(?:запиш[иь]|добав[ь]|постав[ь]|отмен[иь]|убер[иь])\s+([А-ЯЁ][а-яё]+)',
-        text, re.IGNORECASE,
-    )
-    if name_match:
-        name = name_match.group(1).capitalize()
-    else:
-        # Pattern: "Алину на 12:00", "Свету удали"
-        name_match = re.search(
-            r'([А-ЯЁ][а-яё]+)(?:у|а|е|ю)?\s+(?:на|в|запиш|отмен|удал)',
-            text, re.IGNORECASE,
-        )
-        if name_match:
-            name = name_match.group(1).capitalize()
-
-    logger.info("Regex fallback: %s → action=%s name=%s date=%s time=%s",
-                text[:100], action, name, date_str, time_str)
+    # ── Name extraction ──
+    name = _extract_name(text)
 
     return {
         "action": action,
@@ -341,3 +336,155 @@ def _fallback_regex_extraction(text: str) -> dict:
         "reason": None,
         "confidence": "low",
     }
+
+
+def _extract_time(text: str) -> Optional[str]:
+    """Extract time from Russian text. Returns HH:MM or None."""
+    # "12:00", "12.00", "12-00"
+    m = re.search(r'(\d{1,2})[:\.](\d{2})', text)
+    if m:
+        h, mn = int(m.group(1)), int(m.group(2))
+        if 0 <= h <= 23 and 0 <= mn <= 59:
+            return f"{h:02d}:{mn:02d}"
+
+    # "3 часа дня", "в 3 дня", "15 часов"
+    m = re.search(r'(?:в|на|к|)\s*(\d{1,2})\s*(?:часа?|часов|ч\b)\s*(дня|вечера|утра|ночи)?', text)
+    if m:
+        h = int(m.group(1))
+        suffix = m.group(2)
+        if suffix:
+            if suffix == 'дня' and h <= 12:
+                h += 12
+            elif suffix == 'вечера':
+                h += 12 if h < 12 else 0  # "6 вечера" = 18, "10 вечера" = 22
+            elif suffix == 'ночи':
+                h = h if h >= 12 else h  # "2 ночи" = 02, "12 ночи" = 00
+                if h == 12:
+                    h = 0
+        else:
+            # Just "15 часов" — could be 15:00, keep as-is if in 24h range
+            if h > 12:
+                pass  # already 24h
+            else:
+                # Ambiguous: "3 часа" without suffix — assume day (15:00)
+                pass  # keep as literal
+        if 0 <= h <= 23:
+            return f"{h:02d}:00"
+
+    # "полдень" / "полночь"
+    if 'полдень' in text or 'полдня' in text:
+        return "12:00"
+    if 'полночь' in text or 'полночи' in text:
+        return "00:00"
+
+    # "в 12", "на 12", "к 12" (without hours/chasov)
+    m = re.search(r'(?:в|на|к)\s+(\d{1,2})\b(?!\s*(?:час|ч\b|:\d))', text)
+    if m:
+        h = int(m.group(1))
+        if 1 <= h <= 23:
+            return f"{h:02d}:00"
+
+    return None
+
+
+def _extract_date(text: str, now: datetime) -> Optional[str]:
+    """Extract date from text. Returns YYYY-MM-DD or None."""
+    today = now.strftime("%Y-%m-%d")
+    tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+    day_after = (now + timedelta(days=2)).strftime("%Y-%m-%d")
+
+    # Relative
+    if any(w in text for w in ["сегодня"]):
+        return today
+    if any(w in text for w in ["завтра"]):
+        return tomorrow
+    if any(w in text for w in ["послезавтра"]):
+        return day_after
+
+    # "15 числа" (current month)
+    m = re.search(r'(\d{1,2})\s*числ[ао]', text)
+    if m:
+        day = int(m.group(1))
+        if 1 <= day <= 31:
+            return f"{now.year:04d}-{now.month:02d}-{day:02d}"
+
+    # "22 июля", "15 августа"
+    month_names = '|'.join(_RU_MONTHS_MAP.keys())
+    m = re.search(rf'(\d{{1,2}})\s*({month_names})', text)
+    if m:
+        day = int(m.group(1))
+        month = _RU_MONTHS_MAP.get(m.group(2).lower(), 0)
+        if 1 <= day <= 31 and month:
+            year = now.year
+            if month < now.month:
+                year += 1
+            return f"{year:04d}-{month:02d}-{day:02d}"
+
+    # "22.07", "22.7", "22/07"
+    m = re.search(r'(\d{1,2})[\./](\d{1,2})', text)
+    if m:
+        day = int(m.group(1))
+        month = int(m.group(2))
+        if 1 <= day <= 31 and 1 <= month <= 12:
+            year = now.year
+            if month < now.month:
+                year += 1
+            return f"{year:04d}-{month:02d}-{day:02d}"
+
+    return None
+
+
+def _extract_name(text: str) -> Optional[str]:
+    """Extract a Russian client name from the command text.
+    Normalizes accusative/accusative/dative cases to nominative."""
+    # Words that look like names but aren't
+    skip = {'меня', 'клиента', 'человека', 'окно', 'окошко', 'запись', 'слот',
+            'новое', 'новый', 'новую', 'запиши', 'отмени', 'удали', 'покажи',
+            'завтра', 'сегодня', 'записан', 'выходной', 'нерабочий'}
+
+    # Normalize case ending to nominative
+    def to_nom(name):
+        n = name.capitalize()
+        # Accusative -у/-ю: Алину→Алина, Настю→Настя, Свету→Света, Диму→Дима
+        if n.endswith('у') and len(n) > 3:
+            n = n[:-1] + 'а'
+        elif n.endswith('ю') and len(n) > 3:
+            n = n[:-1] + 'я'
+        # Genitive -ы/-и: Алины→Алина, Насти→Настя
+        elif n.endswith('ы') and len(n) > 3:
+            n = n[:-1] + 'а'
+        elif n.endswith('и') and len(n) > 3:
+            n = n[:-1] + ('я' if n[-2] not in 'аоуыэяёюие' else 'а')
+        return n
+
+    # Pattern 1: "запиши Алину", "отмени запись Алины"
+    m = re.search(
+        r'(?:запиши|добавь|поставь|создай|отмени|удали|сними|убер[иь])\s+(?:запись\s+)?([А-ЯЁ][а-яё]+)',
+        text, re.IGNORECASE,
+    )
+    if m:
+        name = to_nom(m.group(1))
+        if name.lower() not in skip:
+            return name
+
+    # Pattern 2: "Алина на 12", but not if preceded by non-name indicators
+    m = re.search(
+        r'(?<![а-яё])([А-ЯЁ][а-яё]+)\s+(?:на|в|к)\s+(?:\d|завтра)',
+        text, re.IGNORECASE,
+    )
+    if m:
+        name = to_nom(m.group(1))
+        if name.lower() not in skip:
+            return name
+
+    # Pattern 3: trailing name "настю запиши", "диму добавь"
+    m = re.search(
+        r'([А-ЯЁ][а-яё]+[ую]?)\s+(?:запиши|добавь|отмени|удали|поставь)',
+        text, re.IGNORECASE,
+    )
+    if m:
+        name = to_nom(m.group(1).rstrip('ую'))
+        if name.lower() not in skip:
+            return name
+
+    return None
