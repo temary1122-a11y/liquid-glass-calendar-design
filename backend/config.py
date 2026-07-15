@@ -52,6 +52,9 @@ if not ADMIN_SECRET_KEY:
 DATABASE_URL: str = _clean_env(os.getenv("DATABASE_URL"))
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is required in environment variables")
+# Log masked URL for debugging connection issues
+_masked = DATABASE_URL.replace(DATABASE_URL.split('@')[0].split(':')[-1] if '@' in DATABASE_URL and ':' in DATABASE_URL.split('@')[0] else '***', '***')
+logging.getLogger(__name__).info("DATABASE_URL: %s", _masked)
 
 # ---------------------------------------------------------------------------
 # Optional (with sensible defaults for dev)
