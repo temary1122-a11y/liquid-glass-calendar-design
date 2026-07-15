@@ -18,6 +18,7 @@ from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from bot.handlers.common import router as common_router
 from bot.handlers.admin_voice import router as admin_voice_router
+from bot.handlers.bulk_slots import router as bulk_router
 from config import BOT_TOKEN
 
 # ---------------------------------------------------------------------------
