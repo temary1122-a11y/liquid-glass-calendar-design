@@ -46,6 +46,13 @@ EXTRACTION_TIMEOUT = 15.0
 # ---------------------------------------------------------------------------
 
 
+def _fix_ext(name: str) -> str:
+    """Telegram sends .oga — Groq expects .ogg."""
+    if name.endswith('.oga'):
+        return name[:-4] + '.ogg'
+    return name
+
+
 async def transcribe_voice(audio_path: str) -> Optional[str]:
     """
     Transcribe an audio file using Groq Whisper API.
@@ -63,8 +70,9 @@ async def transcribe_voice(audio_path: str) -> Optional[str]:
     try:
         async with httpx.AsyncClient(timeout=TRANSCRIPTION_TIMEOUT) as client:
             with open(audio_path, "rb") as f:
+                filename = _fix_ext(os.path.basename(audio_path))
                 files = {
-                    "file": (os.path.basename(audio_path), f, "audio/ogg"),
+                    "file": (filename, f, "audio/ogg"),
                 }
                 data = {
                     "model": TRANSCRIPTION_MODEL,

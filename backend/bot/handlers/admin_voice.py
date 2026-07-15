@@ -76,16 +76,12 @@ async def cmd_vc_help(message: types.Message) -> None:
 
 @router.message(F.voice, F.from_user.id == ADMIN_ID_INT)
 async def handle_admin_voice(message: types.Message, bot: Bot) -> None:
-    """Admin voice → 4 progress steps → execute → reply."""
-    total_steps = 4
+    """Admin voice → transcribe → extract → execute."""
     admin_id = message.from_user.id
-    logger.info("[voice] Admin %d sent voice msg (msg_id=%d)", admin_id, message.message_id)
+    logger.info("[voice] Admin %d voice msg (msg_id=%d)", admin_id, message.message_id)
 
-    status_msg = await message.reply(
-        f"🎤 <b>Скачиваю голосовое...</b>\n\n"
-        f"<code>[▰▱▱▱]</code>",
-        parse_mode="HTML",
-    )
+    # Status message — single line, no progress bar
+    status_msg = await message.reply("🎤 <b>Обрабатываю голосовое...</b>", parse_mode="HTML")
 
     voice = message.voice
     file_info = await bot.get_file(voice.file_id)
@@ -94,10 +90,9 @@ async def handle_admin_voice(message: types.Message, bot: Bot) -> None:
         f"liquid_glass_voice_{message.message_id}.oga",
     )
     await bot.download_file(file_info.file_path, tmp_path)
-    logger.info("[voice] Downloaded: %s (%d bytes)", tmp_path, voice.file_size or 0)
+    logger.info("[voice] Downloaded: %d bytes", voice.file_size or 0)
 
-    await _edit_progress(status_msg, "🔊 <b>Расшифровываю речь...</b>", total_steps, 2,
-                          detail=f"Размер: {voice.file_size or '?'} байт")
+    await status_msg.edit_text("🔊 <b>Расшифровываю...</b>", parse_mode="HTML")
     transcribed = await transcribe_voice(tmp_path)
 
     try:
@@ -106,33 +101,20 @@ async def handle_admin_voice(message: types.Message, bot: Bot) -> None:
         pass
 
     if not transcribed:
-        logger.warning("[voice] Transcription empty for msg_id=%d", message.message_id)
+        logger.warning("[voice] Transcription failed for msg_id=%d", message.message_id)
         await status_msg.edit_text(
             "❌ <b>Не удалось распознать голос.</b>\n\n"
-            "Попробуйте ещё раз или напишите команду текстом.\n"
-            "Пример: <i>Запиши Алину на 12:00 21 числа</i>",
+            "Попробуйте ещё раз или напишите команду текстом.",
             parse_mode="HTML",
         )
         return
 
-    await _edit_progress(
-        status_msg, "🔍 <b>Анализирую команду...</b>", total_steps, 3,
-        detail=f"«{transcribed[:60]}{'...' if len(transcribed) > 60 else ''}»",
-    )
+    await status_msg.edit_text("🔍 <b>Анализирую...</b>", parse_mode="HTML")
     cmd = await extract_command(transcribed)
     logger.info("[voice] Extracted: action=%s name=%s date=%s time=%s",
                 cmd.get("action"), cmd.get("client_name"), cmd.get("date"), cmd.get("time"))
 
-    action_labels = {
-        "book": "✏️ Создаю запись...",
-        "cancel": "🗑️ Отменяю запись...",
-        "check": "📋 Смотрю записи...",
-        "set_day_off": "📴 Закрываю день...",
-        "set_day_on": "📅 Открываю день...",
-        "unknown": "🤔 Обрабатываю...",
-    }
-    action_label = action_labels.get(cmd.get("action", "unknown"), "⚙️ Выполняю...")
-    await _edit_progress(status_msg, f"{action_label}", total_steps, 4)
+    await status_msg.edit_text("✏️ <b>Выполняю...</b>", parse_mode="HTML")
     result = await execute_command(cmd)
 
     conf_emoji = {"high": "🎯", "medium": "👍", "low": "🤔"}.get(
@@ -198,29 +180,20 @@ async def cmd_bulk_denied(message: types.Message) -> None:
 
 async def _process_bulk(message: types.Message, raw: str) -> None:
     """Parse and insert bulk slots, reply with result."""
-    status_msg = await message.reply(
-        "📋 <b>Разбираю слоты...</b>\n\n<code>[▰▱▱]</code>",
-        parse_mode="HTML",
-    )
+    status_msg = await message.reply("📋 <b>Разбираю...</b>", parse_mode="HTML")
 
     pairs = parse_bulk(raw)
     logger.info("[bulk] Parsed %d pairs from %d chars", len(pairs), len(raw))
 
     if not pairs:
-        logger.warning("[bulk] No valid pairs found")
         await status_msg.edit_text(
             "❌ <b>Не удалось распознать слоты.</b>\n\n"
-            "Проверьте формат:\n"
-            "<code>22.07 13:30;\n24.07 13:30;</code>",
+            "Формат:\n<code>22.07 13:30;\n24.07 13:30;</code>",
             parse_mode="HTML",
         )
         return
 
-    await status_msg.edit_text(
-        f"📋 <b>Найдено {len(pairs)} слотов</b>\n\n"
-        f"<code>[▰▰▱]</code>\n\n<i>Добавляю...</i>",
-        parse_mode="HTML",
-    )
+    await status_msg.edit_text(f"📋 <b>Добавляю {len(pairs)} окон...</b>", parse_mode="HTML")
 
     from collections import defaultdict
     added, skipped, errors, new_days = 0, 0, 0, 0
@@ -333,27 +306,14 @@ async def handle_admin_text(message: types.Message) -> None:
 
     logger.info("[admin_text] Voice command from admin %d: %s", admin_id, text[:100])
 
-    status_msg = await message.reply(
-        "💬 <b>Обрабатываю...</b>\n\n<code>[▰▰▱▱]</code>",
-        parse_mode="HTML",
-    )
+    status_msg = await message.reply("💬 <b>Обрабатываю...</b>", parse_mode="HTML")
 
-    await _edit_progress(status_msg, "🔍 <b>Анализирую...</b>", 4, 3,
-                          detail=f"«{text[:60]}{'...' if len(text) > 60 else ''}»")
+    await status_msg.edit_text("🔍 <b>Анализирую...</b>", parse_mode="HTML")
     cmd = await extract_command(text)
     logger.info("[admin_text] Extracted: action=%s name=%s date=%s time=%s",
                 cmd.get("action"), cmd.get("client_name"), cmd.get("date"), cmd.get("time"))
 
-    action_labels = {
-        "book": "✏️ Создаю запись...",
-        "cancel": "🗑️ Отменяю...",
-        "check": "📋 Смотрю...",
-        "set_day_off": "📴 Закрываю день...",
-        "set_day_on": "📅 Открываю день...",
-        "unknown": "🤔 Обрабатываю...",
-    }
-    action_label = action_labels.get(cmd.get("action", "unknown"), "⚙️ Выполняю...")
-    await _edit_progress(status_msg, action_label, 4, 4)
+    await status_msg.edit_text("✏️ <b>Выполняю...</b>", parse_mode="HTML")
     result = await execute_command(cmd)
 
     conf_emoji = {"high": "🎯", "medium": "👍", "low": "🤔"}.get(
