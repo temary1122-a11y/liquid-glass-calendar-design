@@ -46,6 +46,11 @@ NGROK_TOKEN.txt
 # Build
 build/
 
+# Backup & temp files
+*.backup
+*.backup2
+temp_*
+
 # MCP Server Files (API Keys)
 mcp_config.json
 mcp_ai_server.py

@@ -10,3 +10,4 @@ pydantic
 pydantic-settings
 websockets
 httpx
+cryptography

@@ -33,8 +33,11 @@ bot = Bot(
 dp = Dispatcher(storage=MemoryStorage())
 
 # Register routers
-dp.include_router(admin_voice_router)  # admin voice/text commands — must be first for priority
-dp.include_router(bulk_router)  # admin /bulk command
+# Order matters: Command-filtered routers first, then F.text catch-all routers last
+# admin_voice has F.voice + F.text ~F starts with / → won't catch /bulk
+# bulk_router has Command('bulk') → won't interfere with admin_voice text handler
+dp.include_router(admin_voice_router)  # admin voice/text commands
+dp.include_router(bulk_router)  # admin /bulk command (Command filter, safe anywhere)
 dp.include_router(common_router)
 
 

@@ -39,15 +39,34 @@ export default function App() {
 
     if (user) {
       setUserId(user.id);
-      // Check if user is admin
-      const adminId = parseInt(import.meta.env.VITE_ADMIN_ID || '0');
-      setIsAdmin(user.id === adminId);
-      
-      // Only set admin view if user is admin OR admin param is true (for testing)
-      if (isAdminParam || user.id === adminId) {
-        setView('admin');
+    }
+
+    // Dynamic admin check: ask backend (no hardcoded ADMIN_ID in frontend!)
+    async function checkAdmin() {
+      try {
+        const resp = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com'}/api/auth/check-admin`,
+          {
+            headers: {
+              'x-init-data': tg?.initData || '',
+            },
+          }
+        );
+        const data = await resp.json();
+        setIsAdmin(data.is_admin);
+        if (isAdminParam || data.is_admin) {
+          setView('admin');
+        }
+      } catch {
+        // Fallback to env var (build-time) if backend unreachable
+        const adminId = parseInt(import.meta.env.VITE_ADMIN_ID || '0');
+        setIsAdmin(user?.id === adminId);
+        if (isAdminParam || user?.id === adminId) {
+          setView('admin');
+        }
       }
     }
+    checkAdmin();
   }, []);
 
   const handleHasActiveBooking = useCallback((hasBooking: boolean) => {

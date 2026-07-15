@@ -13,8 +13,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from api.deps import get_current_user_id
-from database.db import Booking, get_db
+from database.db import Booking, TimeSlot, WorkDay, get_db
 from api.websocket import manager as ws_manager
+from utils.crypto import decrypt_phone
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -80,7 +81,7 @@ async def get_user_bookings(
             UserBookingResponse(
                 id=b.id,
                 client_name=b.client_name,
-                phone=b.phone,
+                phone=decrypt_phone(b.phone),
                 day_date=b.day_date,  # Direct field
                 slot_time=b.slot_time,  # Direct field
                 status=b.status,

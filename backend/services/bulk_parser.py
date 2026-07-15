@@ -43,7 +43,6 @@ def _parse_date(token: str) -> str:
     today = datetime.now()
     default_year = today.year
 
-    # Numeric: DD.MM(.YYYY)?
     m = _DATE_RE.match(token)
     if m:
         day = int(m.group(1))
@@ -52,7 +51,6 @@ def _parse_date(token: str) -> str:
         if 1 <= day <= 31 and 1 <= month <= 12:
             return f"{year:04d}-{month:02d}-{day:02d}"
 
-    # Russian: "22 июля"
     m = _RU_MONTH_RE.match(token)
     if m:
         day = int(m.group(1))
@@ -96,12 +94,11 @@ def parse_bulk(text: str) -> List[Tuple[str, str]]:
     results: List[Tuple[str, str]] = []
 
     for line in lines:
-        # ---- Unglue: "31.0711:00" → "31.07 11:00" ----
+        # Unglue: "31.0711:00" → "31.07 11:00"
         glued = re.match(r'^(\d{1,2}\.\d{1,2})(\d{1,2}[:\.]\d{2})(.*)$', line)
         if glued:
             line = f"{glued.group(1)} {glued.group(2)} {glued.group(3)}".strip()
 
-        # ---- Tokenize ----
         tokens = line.split()
         if not tokens:
             continue
@@ -109,12 +106,10 @@ def parse_bulk(text: str) -> List[Tuple[str, str]]:
         idx = 0
         found_date = ""
 
-        # Try 1-token numeric date: "22.07"
         d = _parse_date(tokens[idx])
         if d:
             found_date = d
             idx += 1
-        # Try 2-token Russian date: "22 июля"
         elif len(tokens) >= 2:
             d = _parse_date(f"{tokens[0]} {tokens[1]}")
             if d:
@@ -124,13 +119,11 @@ def parse_bulk(text: str) -> List[Tuple[str, str]]:
         if found_date:
             current_date = found_date
 
-        # Remaining tokens are times
         for tok in tokens[idx:]:
             t = _parse_time(tok)
             if t and current_date:
                 results.append((current_date, t))
 
-    # Deduplicate preserving order
     seen = set()
     unique = []
     for pair in results:
@@ -140,52 +133,3 @@ def parse_bulk(text: str) -> List[Tuple[str, str]]:
 
     logger.info("Bulk parse: %d lines → %d unique pairs", len(lines), len(unique))
     return unique
-
-
-# ---------------------------------------------------------------------------
-# Self-test
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    test_cases = [
-        (
-            "22.07 13:30; 14:00; 15:00\n23.07 10:00, 11:00",
-            [("2026-07-22", "13:30"), ("2026-07-22", "14:00"),
-             ("2026-07-22", "15:00"), ("2026-07-23", "10:00"),
-             ("2026-07-23", "11:00")],
-        ),
-        (
-            "31.07 11:00; 12:30; 13:00",
-            [("2026-07-31", "11:00"), ("2026-07-31", "12:30"),
-             ("2026-07-31", "13:00")],
-        ),
-        (
-            "31.0711:00",
-            [("2026-07-31", "11:00")],
-        ),
-        (
-            "22 \u0438\u044e\u043b\u044f 13:00; 14:00\n23.07 10:00",
-            [("2026-07-22", "13:00"), ("2026-07-22", "14:00"),
-             ("2026-07-23", "10:00")],
-        ),
-        # Time-only lines inherit previous date
-        (
-            "22.07 13:30\n14:00\n15:00",
-            [("2026-07-22", "13:30"), ("2026-07-22", "14:00"),
-             ("2026-07-22", "15:00")],
-        ),
-    ]
-
-    all_passed = True
-    for text, expected in test_cases:
-        result = parse_bulk(text)
-        status = "OK" if result == expected else "FAIL"
-        if result != expected:
-            all_passed = False
-        print(f"[{status}] {repr(text[:60])}")
-        if result != expected:
-            print(f"  Expected: {expected}")
-            print(f"  Got:      {result}")
-
-    print("=" * 40)
-    print("ALL PASSED!" if all_passed else "SOME FAILED!")

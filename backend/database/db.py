@@ -6,13 +6,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    raise ValueError("КРИТИЧЕСКАЯ ОШИБКА: Переменная окружения DATABASE_URL не задана! Подключение к БД невозможно.")
-
-# Убираем случайные пробелы, которые могли появиться при копировании в Render
-DATABASE_URL = DATABASE_URL.strip()
+from config import DATABASE_URL
+from utils.crypto import decrypt_phone, encrypt_phone
 
 # Render предоставляет строку postgres://, а SQLAlchemy требует postgresql://
 if DATABASE_URL.startswith("postgres://"):
@@ -59,7 +54,7 @@ class Booking(Base):
     user_id = Column(BigInteger, nullable=True)
     username = Column(String(255), nullable=True)
     client_name = Column(String(255), nullable=False)
-    phone = Column(String(20), nullable=True)
+    phone = Column(Text, nullable=True)  # encrypted with Fernet, prefixed 'enc:' when encrypted
     day_date = Column(String(10), nullable=False)  # YYYY-MM-DD (Supabase: direct field)
     slot_time = Column(String(5), nullable=False)  # HH:MM (Supabase: direct field)
     status = Column(String(20), default="pending")  # pending, confirmed, cancelled, completed
@@ -69,6 +64,7 @@ class Booking(Base):
     cancel_reason = Column(Text, nullable=True)  # renamed from cancellation_reason
     cancelled_at = Column(String, nullable=True)  # ISO format string (Supabase: text)
     service_id = Column(String(50), nullable=True)  # NEW field (Supabase has it)
+    reminder_sent = Column(Integer, default=0)  # 0 = not sent, 1 = reminder already sent
 
     # Relationship to TimeSlot (via day_date and slot_time)
     slot = relationship(

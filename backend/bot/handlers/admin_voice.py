@@ -7,15 +7,10 @@ Handles:
   - Fallback: regex extraction when Groq API is unavailable
   - Live progress steps with message editing for smooth UX
 
-Security:
-  - ALL handlers check `message.from_user.id == ADMIN_ID_INT`
-  - Non-admin users get a silent ignore (no error, no info leak)
-
-Examples of supported commands (voice or text):
-  «Запиши Алину на 12:00 21 числа»
-  «Отмени запись Алины»
-  «Кто записан 21 числа?»
-  «Выходной 21 числа»
+IMPORTANT: The F.text handler below has PRIORITY over common_router.
+Admins who type something that doesn't look like a command will get NO response
+(aiogram cannot pass-through after a router has consumed the update).
+Use /bulk or /start for non-command admin messages.
 """
 
 import logging
@@ -44,12 +39,6 @@ async def _edit_progress(msg: types.Message, step: str, total_steps: int,
     if detail:
         text += f"\n<i>{detail}</i>"
     await msg.edit_text(text, parse_mode="HTML")
-
-
-# ── Gate ────────────────────────────────────────────────
-
-def _is_admin(message: types.Message) -> bool:
-    return message.from_user is not None and message.from_user.id == ADMIN_ID_INT
 
 
 # ── /vc ────────────────────────────────────────────────
@@ -82,9 +71,6 @@ async def cmd_vc_help(message: types.Message) -> None:
 async def handle_admin_voice(message: types.Message, bot: Bot) -> None:
     """Admin voice → 4 progress steps → execute → reply."""
     total_steps = 4
-    admin_id = message.from_user.id
-    logger.info("[voice] Admin %d sent voice message (msg_id=%d, file_id=%s)",
-                admin_id, message.message_id, message.voice.file_id[:20])
 
     # Step 1: Downloading
     status_msg = await message.reply(
@@ -175,18 +161,15 @@ async def handle_admin_text_command(message: types.Message) -> None:
     admin_id = message.from_user.id
     logger.info("[voice:text] Admin %d text command: %s", admin_id, text[:100])
 
-    # Progress message
     status_msg = await message.reply(
         f"💬 <b>Обрабатываю...</b>\n\n<code>[▰▰▱▱]</code>",
         parse_mode="HTML",
     )
 
-    # Extract
     await _edit_progress(status_msg, "🔍 <b>Анализирую...</b>", 4, 3,
                           detail=f"«{text[:60]}{'...' if len(text) > 60 else ''}»")
     cmd = await extract_command(text)
 
-    # Execute
     action_labels = {
         "book": "✏️ Создаю запись...",
         "cancel": "🗑️ Отменяю...",

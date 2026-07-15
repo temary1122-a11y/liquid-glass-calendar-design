@@ -59,9 +59,9 @@ function isActiveBooking(booking: UserBooking): boolean {
   if (booking.is_cancelled || booking.status === 'cancelled' || booking.status === 'completed') {
     return false;
   }
-  // Get current date in YYYY-MM-DD format in user's timezone
-  const todayStr = new Date().toISOString().slice(0, 10);
-  return booking.day_date >= todayStr;
+  // Only check the same date — client can have multiple bookings on different dates.
+  // Backend already enforces: max one active booking per date.
+  return true;
 }
 
 export default function ClientProfile({

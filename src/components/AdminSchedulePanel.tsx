@@ -157,7 +157,8 @@ export default function AdminSchedulePanel() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(() => loadData(), 30000);
+    // Poll every 5 minutes as fallback (WebSocket handles real-time updates)
+    const interval = setInterval(() => loadData(), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadData]);
 
