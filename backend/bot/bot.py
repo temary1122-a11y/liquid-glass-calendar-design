@@ -29,7 +29,7 @@ from config import BOT_TOKEN
 # ---------------------------------------------------------------------------
 
 bot = Bot(
-    token=***
+    token=BOT_TOKEN,
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 
