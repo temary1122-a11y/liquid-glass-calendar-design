@@ -21,7 +21,7 @@ from starlette.responses import JSONResponse
 
 from config import PORT, WEBHOOK_URL
 from database.db import init_db
-from api.routes import booking, profile, admin
+from api.routes import booking, profile, admin, auth
 from api.websocket import router as ws_router
 from bot.bot import bot, dp, set_bot_commands
 from bot.handlers.webhook import set_bot_and_dispatcher, router as webhook_router
@@ -82,6 +82,7 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 
+app.include_router(auth.router)
 app.include_router(booking.router)
 app.include_router(profile.router)
 app.include_router(admin.router)
