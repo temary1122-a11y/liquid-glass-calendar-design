@@ -7,6 +7,7 @@ Bot command handlers:
   /backup     — admin only: creates database backup
 """
 
+import logging
 import os
 import subprocess
 from datetime import datetime
@@ -25,12 +26,13 @@ from aiogram.types import (
     WebAppInfo,
 )
 
+from config import ADMIN_ID_INT, DATABASE_URL, MINI_APP_URL
 from database.db import Booking, SessionLocal, TimeSlot
+from utils.crypto import decrypt_phone
+
+logger = logging.getLogger(__name__)
 
 router = Router()
-
-ADMIN_ID: int = int(os.getenv("ADMIN_ID", "0"))
-MINI_APP_URL: str = os.getenv("MINI_APP_URL", "https://temary1122-a11y.github.io/liquid-glass-calendar-design/")
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +149,7 @@ async def _show_booking(message: types.Message, user_id: int) -> None:
             f"🕐 Время: <b>{booking.slot_time}</b>\n"
             f"📍 Адрес: <b>Тихий переулок, 4</b>\n"
             f"👤 Имя: {booking.client_name}\n"
-            f"📞 Телефон: {booking.phone or '—'}\n\n"
+            f"📞 Телефон: {decrypt_phone(booking.phone) or '—'}\n\n"
             f"Статус: {status_text}\n\n"
             f"Чтобы отменить запись: /cancel"
         )
@@ -319,9 +321,9 @@ async def process_cancel_reason(message: types.Message, state: FSMContext) -> No
     )
 
     try:
-        await message.bot.send_message(ADMIN_ID, admin_text)
+        await message.bot.send_message(ADMIN_ID_INT, admin_text)
     except Exception as exc:
-        print(f"[bot] Failed to notify admin: {exc}")
+        logger.warning("Failed to notify admin: %s", exc)
 
     await message.answer(
         f"✅ <b>Запись отменена.</b>\n\n"
@@ -340,7 +342,7 @@ async def process_cancel_reason(message: types.Message, state: FSMContext) -> No
 async def cmd_backup(message: types.Message) -> None:
     """Admin only: creates database backup and sends the file."""
     # Check if user is admin
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id != ADMIN_ID_INT:
         await message.answer("❌ Только администратор может использовать эту команду.")
         return
 
@@ -350,8 +352,8 @@ async def cmd_backup(message: types.Message) -> None:
     backup_filename = f"backup_{timestamp}.sql"
 
     try:
-        # Get DATABASE_URL from environment
-        database_url = os.getenv("DATABASE_URL", "")
+        # Use centralized DATABASE_URL from config
+        database_url = DATABASE_URL
         
         if not database_url:
             await message.answer("❌ DATABASE_URL не задан в переменных окружения.")
@@ -386,10 +388,15 @@ async def cmd_backup(message: types.Message) -> None:
                 await message.answer("❌ Неверный формат DATABASE_URL")
                 return
 
-            # Run pg_dump with explicit host and port (60 second timeout)
-            command = f"PGPASSWORD={password} pg_dump -h {host} -p {port} -U {user} -d {database} > {backup_filename}"
-            print(f"[backup] Running command: pg_dump -h {host} -p {port} -U {user} -d {database}")
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=60)
+            # Run pg_dump securely: no shell=True, password via env var
+            backup_env = {**os.environ, "PGPASSWORD": password}
+            backup_cmd = ["pg_dump", "-h", host, "-p", port, "-U", user, "-d", database]
+            logger.info("Running pg_dump: host=%s port=%s db=%s", host, port, database)
+            with open(backup_filename, "w") as backup_file:
+                result = subprocess.run(
+                    backup_cmd, env=backup_env, stdout=backup_file,
+                    stderr=subprocess.PIPE, text=True, timeout=60
+                )
         except subprocess.TimeoutExpired:
             await message.answer("❌ Таймаут: бекап не создан за 60 секунд. База данных слишком большая или нет доступа.")
             return

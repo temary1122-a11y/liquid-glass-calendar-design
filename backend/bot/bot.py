@@ -10,17 +10,16 @@ Used by main.py to:
   2. Feed updates from POST /webhook
 """
 
-import os
-
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, BotCommandScopeDefault
 
+from bot.handlers.bulk_slots import router as bulk_router
 from bot.handlers.common import router as common_router
-
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+from bot.handlers.admin_voice import router as admin_voice_router
+from config import BOT_TOKEN
 
 # ---------------------------------------------------------------------------
 # Instantiate bot and dispatcher (singleton)
@@ -34,6 +33,8 @@ bot = Bot(
 dp = Dispatcher(storage=MemoryStorage())
 
 # Register routers
+dp.include_router(admin_voice_router)  # admin voice/text commands — must be first for priority
+dp.include_router(bulk_router)  # admin /bulk command
 dp.include_router(common_router)
 
 
@@ -48,7 +49,9 @@ async def set_bot_commands():
         BotCommand(command="start", description="📅 Записаться"),
         BotCommand(command="mybooking", description="📋 Моя запись"),
         BotCommand(command="cancel", description="❌ Отменить запись"),
+        BotCommand(command="vc", description="🎤 Голосовые команды (админ)"),
+        BotCommand(command="bulk", description="📋 Массовое добавление слотов (админ)"),
         BotCommand(command="help", description="❓ Помощь"),
     ]
-    
+
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
