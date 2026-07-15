@@ -18,7 +18,6 @@ from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from bot.handlers.common import router as common_router
 from bot.handlers.admin_voice import router as admin_voice_router
-from bot.handlers.bulk_slots import router as bulk_router
 from config import BOT_TOKEN
 
 # ---------------------------------------------------------------------------
@@ -34,6 +33,10 @@ dp = Dispatcher(storage=MemoryStorage())
 
 # Register routers
 dp.include_router(admin_voice_router)  # admin voice/text commands — must be first for priority
+# ⚠️ bulk_router has F.text catch-all — register LAST to not interfere with other text handlers
+# Note: bulk_router is currently broken (F.text without priority conflicts with admin_voice)
+# dp.include_router(bulk_router)  # FIXME: re-enable after fixing router priority
+
 dp.include_router(common_router)
 
 
