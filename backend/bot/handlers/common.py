@@ -96,14 +96,13 @@ async def cmd_start(message: types.Message, state: FSMContext) -> None:
 
     await message.answer(
         "👋 <b>Добро пожаловать!</b>\n\n"
-        "Я помогу вам записаться к мастеру ресниц.\n\n"
-        "Нажмите кнопку ниже, чтобы выбрать удобное время:",
+        "Я бот для записи к мастеру ресниц.\n\n"
+        "Выберите удобное время в календаре:",
         reply_markup=keyboard,
     )
     
-    # Also show permanent keyboard
     await message.answer(
-        "💡 Используйте кнопки ниже для быстрых действий:",
+        "💡 Кнопки для быстрых действий:",
         reply_markup=main_keyboard,
     )
 
@@ -430,14 +429,31 @@ async def cmd_backup(message: types.Message) -> None:
 @router.message(Command("help"))
 async def cmd_help(message: types.Message) -> None:
     """Показывает справку по боту."""
+    is_admin = message.from_user.id == ADMIN_ID_INT
+
     help_text = (
-        "📚 <b>Справка по боту</b>\n\n"
-        "📅 <b>Записаться</b> — открывает календарь для записи\n"
-        "📋 <b>Моя запись</b> — показывает вашу текущую запись\n"
-        "❌ <b>Отменить запись</b> — отменяет вашу запись\n"
-        "❓ <b>Помощь</b> — показывает эту справку\n\n"
-        "💡 Используйте кнопки ниже для быстрых действий."
+        "💫 <b>Справка — ресницы SOTO4KA</b>\n\n"
+        "<b>Для клиентов:</b>\n"
+        "📅 <b>Записаться</b> — календарь с выбором даты и времени\n"
+        "📋 <b>Моя запись</b> — статус текущей записи\n"
+        "❌ <b>Отменить запись</b> — отмена с указанием причины\n"
+        "❓ <b>Помощь</b> — эта справка\n"
     )
+
+    if is_admin:
+        help_text += (
+            "\n━━━━━━━━━━━━━━━━━━\n"
+            "<b>Для админа:</b>\n"
+            "🎤 <b>/vc</b> — голосовые команды: запись, отмена, просмотр\n"
+            "📋 <b>/bulk</b> — массовое добавление окон\n"
+        )
+
+    help_text += (
+        "\n━━━━━━━━━━━━━━━━━━\n"
+        "<i>📍 Тихий переулок, 4\n"
+        "📹 https://t.me/lashessoto4ka/8</i>"
+    )
+
     await message.answer(help_text, reply_markup=main_keyboard)
 
 

@@ -46,8 +46,9 @@ async def _edit_progress(msg: types.Message, step: str, total_steps: int,
 @router.message(Command("vc"), F.from_user.id == ADMIN_ID_INT)
 async def cmd_vc_help(message: types.Message) -> None:
     await message.answer(
-        "🎤 <b>Голосовые команды для админа</b>\n\n"
-        "Просто отправьте голосовое сообщение или текст с командой:\n\n"
+        "🎤 <b>Голосовые команды админа</b>\n\n"
+        "<i>Работают голосом и текстом — просто скажите или напишите.</i>\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
         "<b>Создать запись:</b>\n"
         "• «Запиши Алину на 12:00 21 числа»\n"
         "• «Запиши Свету на завтра в 15:00»\n\n"
@@ -60,7 +61,13 @@ async def cmd_vc_help(message: types.Message) -> None:
         "<b>Управление днями:</b>\n"
         "• «Выходной 21 числа»\n"
         "• «Открой 21 июля»\n\n"
-        f"<i>Groq API: {'✅ подключен' if GROQ_API_KEY else '❌ не настроен (текстовый fallback)'}</i>",
+        "━━━━━━━━━━━━━━━━━━\n"
+        "<b>Массовое добавление окон:</b>\n"
+        "• Отправьте список дат и времени (префикс /bulk не нужен):\n"
+        "<code>22.07 13:30;\n24.07 13:30;\n28.07 16:00</code>\n"
+        "• Бот сам определит формат и добавит все слоты\n\n"
+        f"<i>Groq Whisper: {'✅' if GROQ_API_KEY else '❌ (только текст)'}</i>  "
+        f"<i>Groq Llama: {'✅' if GROQ_API_KEY else '❌ (regex fallback)'}</i>",
         parse_mode="HTML",
     )
 
@@ -153,16 +160,19 @@ def _is_bulk_format(text: str) -> bool:
 # ── /bulk command ─────────────────────────────────────
 
 _BULK_HELP = (
-    "📋 <b>Массовое добавление слотов</b>\n\n"
-    "Просто отправьте даты и время в формате:\n\n"
+    "📋 <b>Массовое добавление окон</b>\n\n"
+    "<i>Отправьте список дат и времени — бот сам всё распознает.</i>\n\n"
+    "━━━━━━━━━━━━━━━━━━\n"
+    "<b>Формат:</b>\n"
     "<code>22.07 13:30;\n"
     "24.07 13:30;\n"
     "28.07 13:30; 16:00\n"
     "29.07 11:00; 13:30; 16:00</code>\n\n"
-    "• Разделители: <code>;</code> <code>,</code> или новая строка\n"
-    "• <code>31.0711:00</code> — слипшаяся дата+время\n"
-    "• <code>22 июля 13:00</code> — русские месяцы\n"
-    "• Уже существующие слоты пропускаются"
+    "• Разделители: <b>;</b>  <b>,</b>  или новая строка\n"
+    "• <code>31.0711:00</code> — слипшаяся дата+время (авторазбор)\n"
+    "• <code>22 июля 13:00</code> — русские названия месяцев\n"
+    "• Существующие слоты пропускаются\n"
+    "• <b>Не нужен префикс /bulk</b> — просто отправьте текст"
 )
 
 
@@ -256,17 +266,27 @@ async def _process_bulk(message: types.Message, raw: str) -> None:
     finally:
         db.close()
 
-    parts = [f"✅ <b>Готово!</b>\n"]
-    if added:
-        parts.append(f"➕ Добавлено: <b>{added}</b>")
-    if skipped:
-        parts.append(f"⏭️ Пропущено: <b>{skipped}</b>")
-    if new_days:
-        parts.append(f"📅 Новых дней: <b>{new_days}</b>")
-    if errors:
-        parts.append(f"⚠️ Ошибок: <b>{errors}</b>")
-    parts.append(f"\n📋 <i>Обработано: {len(pairs)} слотов</i>")
-    await status_msg.edit_text("\n".join(parts), parse_mode="HTML")
+    parts = [f"✅ <b>Добавлены окна</b>\n"]
+
+    # Per-date summary
+    from collections import OrderedDict
+    date_summary = OrderedDict()
+    for date_str, time_str in pairs:
+        date_summary.setdefault(date_str, []).append(time_str)
+    for date_str in sorted(date_summary.keys()):
+        times_list = sorted(set(date_summary[date_str]))
+        display_date = date_str[-5:]  # MM-DD
+        times_str = ', '.join(times_list[:6])
+        if len(times_list) > 6:
+            times_str += f' +ещё {len(times_list)-6}'
+        lines.append(f"📅 <b>{display_date}</b>: {times_str}  <i>({len(times_list)} ок.)</i>")
+
+    stats = []
+    if skipped: stats.append(f"⏭️ пропущено: {skipped}")
+    if errors: stats.append(f"⚠️ ошибок: {errors}")
+    if stats:
+        lines.append(f"\n<i>{' · '.join(stats)}</i>")
+    await status_msg.edit_text("\n".join(lines), parse_mode="HTML")
 
 
 # ── Text command handler (ALL admin text) ─────────────
@@ -290,31 +310,11 @@ async def handle_admin_text(message: types.Message) -> None:
 
     admin_id = message.from_user.id
 
-    # 1. Common button text — forward to common handler
+    # 1. Button text — now handled by common_router (registered first).
+    #    If the button wasn't caught there, it means user is not admin.
+    #    Since we're here and user IS admin, silently pass through.
     if text in ("📅 Записаться", "📋 Моя запись", "❌ Отменить запись", "❓ Помощь"):
-        logger.info("[admin_text] Admin %d pressed button: %s", admin_id, text[:30])
-        from bot.handlers.common import btn_book, btn_my_booking, btn_cancel_booking, btn_help
-        button_map = {
-            "📅 Записаться": btn_book,
-            "📋 Моя запись": btn_my_booking,
-            "❌ Отменить запись": btn_cancel_booking,
-            "❓ Помощь": btn_help,
-        }
-        handler = button_map.get(text)
-        if handler:
-            # btn_cancel_booking needs state parameter (FSMContext)
-            if text == "❌ Отменить запись":
-                from aiogram.fsm.context import FSMContext
-                from aiogram.fsm.storage.memory import MemoryStorage
-                # aiogram provides FSMContext via dependency injection normally,
-                # but here we call directly. The handler reads user_id from message
-                # and starts the cancel flow. It uses state.update_data/set_state.
-                # We'll pass a dummy state since btn_cancel_booking just starts a new flow.
-                state = FSMContext(storage=MemoryStorage(), key=f"user:{admin_id}")
-                await handler(message, state)
-            else:
-                await handler(message)
-        return
+        return  # Already handled by common_router (registered first)
 
     # 2. Bulk format auto-detection
     if _is_bulk_format(text):
