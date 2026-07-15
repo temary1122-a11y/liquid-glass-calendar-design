@@ -11,7 +11,7 @@ import re
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False)  # override=False → env vars have priority over .env file
 
 # ---------------------------------------------------------------------------
 # Helper: strip invisible characters from Render copy-paste
