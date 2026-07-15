@@ -3,20 +3,18 @@ FastAPI dependency functions for authentication:
   - initData hash verification (Telegram WebApp)
   - Admin HMAC signature verification
   - Auth date expiry check
+  - WebSocket auth via initData
 """
 
 import hmac
 import hashlib
 import json
-import os
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, unquote
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Query, WebSocket, WebSocketDisconnect
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-ADMIN_ID: str = os.getenv("ADMIN_ID", "")
-ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "f9XnzG1Ib0jYz4iZ8PoU518CcF43M1yEz1liGgUDYpA")
+from config import ADMIN_ID, ADMIN_SECRET_KEY, BOT_TOKEN
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +29,7 @@ def verify_init_data(init_data: str) -> bool:
     Алгоритм:
     1. Извлечь hash= из строки
     2. Отсортировать остальные пары key=value
-    3. Соединить через \\n
+    3. Соединить через \n
     4. HMAC-SHA256(HMAC-SHA256("WebAppData", bot_token), data_check_string)
     5. Сравнить с hash
     """
@@ -148,3 +146,27 @@ async def verify_admin(
         raise HTTPException(status_code=403, detail="Forbidden: You are not the administrator")
 
     return True
+
+
+# ---------------------------------------------------------------------------
+# WebSocket auth helper
+# ---------------------------------------------------------------------------
+
+async def verify_ws_init_data(
+    init_data: str = Query(None),
+) -> int | None:
+    """
+    Проверяет initData переданный как query-параметр при WebSocket подключении.
+    Возвращает user_id или поднимает ошибку.
+    Используется в WebSocket endpoint для аутентификации.
+    """
+    if not init_data:
+        return None  # allow anonymous (non-admin) connections for now
+
+    if not verify_init_data(init_data):
+        return None  # invalid signature → treat as anonymous
+
+    if not check_auth_date(init_data):
+        return None  # expired → treat as anonymous
+
+    return extract_user_id_from_init_data(init_data)

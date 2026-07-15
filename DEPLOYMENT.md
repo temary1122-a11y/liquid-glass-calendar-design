@@ -1,119 +1,70 @@
-# 🚀 Deployment Guide
+# 🚀 Liquid Glass — How It's Actually Deployed
 
-## Backend (Render)
+## Architecture
 
-### Переменные окружения
+| Component | Where | How |
+|-----------|-------|-----|
+| **Frontend** (React + Vite) | GitHub Pages | `.github/workflows/deploy.yml` on push to `main` |
+| **Backend API** (FastAPI) | Render Free Tier | `backend/render.yaml` — Web Service |
+| **Telegram Bot** (aiogram 3) | Render Free Tier | Same service as backend, webhook-based |
+| **Database** | Supabase (Neon PostgreSQL) | `DATABASE_URL` env var → connection string |
+| **Scheduler** (APScheduler) | Render Free Tier | Runs inside the same backend process |
 
-Установите следующие переменные окружения в Render Dashboard:
-
-**Обязательные:**
-- `BOT_TOKEN` - Токен Telegram бота (от @BotFather)
-- `ADMIN_ID` - Ваш Telegram User ID (от @userinfobot)
-- `ADMIN_SECRET_KEY` - Секретный ключ для HMAC аутентификации (сгенерируйте: `python generate_secret_key.py`)
-- `ADMIN_USERNAME` - Ваш Telegram username (с @)
-- `DB_PATH` - Путь к базе данных (например: `/etc/secrets/lash_bot.db`)
-
-**Опциональные:**
-- `FRONTEND_URL` - URL фронтенда (например: `https://liquid-glass-calendar-design.vercel.app`)
-- `BACKEND_URL` - URL бэкенда (автоматически устанавливается Render)
-- `WS_URL` - WebSocket URL (например: `wss://liquid-glass-calendar-design.onrender.com/ws`)
-- `INSTAGRAM_LINK` - Ссылка на Instagram
-
-### Деплой
-
-1. Подключите репозиторий к Render
-2. Создайте новый Web Service
-3. Выберите `Existing Dockerfile` или `Build from source`
-4. Установите Runtime: `Python 3.12`
-5. Build Command: `pip install -r requirements.txt`
-6. Start Command: `python start_all.py`
-7. Добавьте переменные окружения
-8. Deploy
+**Deprecated / removed:**
+- ~~Netlify~~ — never used (root `render.yaml` was a leftover comment)
+- ~~Vercel~~ — DEPLOYMENT.md was out of date, frontend lives on GitHub Pages
+- ~~Railway~~ — in `.gitignore`, never deployed
+- ~~Dockerfile~~ — not present, Render uses Python native build
 
 ---
 
-## Frontend (Vercel)
+## Render Setup
 
-### Переменные окружения
+**Backend Web Service** configured via `backend/render.yaml`:
+- Runtime: Python 3.x
+- Build: `pip install -r requirements.txt`
+- Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Health: `GET /health`
 
-Установите следующие переменные окружения в Vercel Project Settings:
+**Environment Variables (set in Render Dashboard, NOT in code):**
 
-**Обязательные:**
-- `VITE_BACKEND_URL` - URL бэкенда (например: `https://liquid-glass-calendar-design.onrender.com`)
-- `VITE_ADMIN_ID` - Ваш Telegram User ID
-- `VITE_ADMIN_SECRET_KEY` - Секретный ключ для HMAC аутентификации (тот же что на бэкенде)
-- `VITE_BOT_TOKEN` - Токен Telegram бота (для интеграции)
+| Variable | Purpose | Notes |
+|----------|---------|-------|
+| `BOT_TOKEN` | Telegram Bot API token | From @BotFather |
+| `ADMIN_ID` | Telegram user ID of admin | From @userinfobot |
+| `ADMIN_SECRET_KEY` | HMAC secret for admin auth | Random 32-char string |
+| `DATABASE_URL` | Supabase PostgreSQL URL | `postgres://...` or `postgresql://...` |
+| `WEBHOOK_URL` | Telegram webhook URL | `https://<render-app>.onrender.com/webhook` |
+| `MINI_APP_URL` | Frontend URL | `https://temary1122-a11y.github.io/liquid-glass-calendar-design/` |
 
-**Опциональные:**
-- `VITE_PRICES_POST_LINK` - Ссылка на пост с ценами
-- `VITE_INSTAGRAM_LINK` - Ссылка на Instagram
-
-### Деплой
-
-1. Подключите репозиторий к Vercel
-2. Framework Preset: `Vite`
-3. Build Command: `npm run build`
-4. Output Directory: `dist`
-5. Install Command: `npm install`
-6. Добавьте переменные окружения
-7. Deploy
+**⚠️ All secrets MUST be configured in Render Dashboard. Never commit to git.**
 
 ---
 
-## Telegram Bot
+## GitHub Pages (Frontend)
 
-### Webhook
-
-После деплоя бэкенда установите webhook:
-
-```bash
-curl -F "url=https://your-backend.onrender.com/webhook" \
-     -F "secret_token=your_secret" \
-     https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook
-```
+**Workflow:** `.github/workflows/deploy.yml`
+- Triggered on push to `main`
+- Builds with `npm run build`
+- Publishes `dist/` to GitHub Pages
+- Sets `VITE_BACKEND_URL` and `VITE_WS_URL` during build
 
 ---
 
-## Проверка после деплоя
+## Supabase Database
 
-### Backend
+**Schema:** `time_slots`, `work_days`, `bookings` tables
+- `time_slots`: `id, day_date, slot_time, is_booked`
+- `work_days`: `id, day_date, is_closed`
+- `bookings`: `id, user_id, username, client_name, phone, day_date, slot_time, status, note, created_at, is_cancelled, cancel_reason, cancelled_at, service_id`
 
-1. Проверьте health endpoint: `https://your-backend.onrender.com/`
-2. Проверьте admin endpoint с HMAC аутентификацией
-
-### Frontend
-
-1. Откройте Mini App в Telegram
-2. Проверьте что данные загружаются
-3. Проверьте админ панель
+Key design decision: NO foreign keys between tables (denormalized day_date/slot_time). Models match this exactly — no ORM relationship traversal needed, all queries use direct field lookups.
 
 ---
 
-## Безопасность
+## Post-Deploy Verification
 
-- ✅ Хардкоды убраны
-- ✅ HMAC аутентификация для admin routes
-- ✅ Rate limiting включен
-- ✅ CORS настроен
-- ⚠️ В продакшене укажите конкретные домены в CORS вместо `*`
-
----
-
-## Troubleshooting
-
-### Backend не запускается
-
-- Проверьте логи в Render Dashboard
-- Убедитесь что все переменные окружения установлены
-- Проверьте что Python версия 3.12
-
-### Frontend не подключается к backend
-
-- Проверьте `VITE_BACKEND_URL` в Vercel
-- Проверьте CORS настройки на бэкенде
-- Проверьте что backend запущен и доступен
-
-### HMAC аутентификация не работает
-
-- Убедитесь что `ADMIN_SECRET_KEY` одинаковый на бэкенде и фронтенде
-- Проверьте что `ADMIN_ID` правильный
+1. `GET https://<render-app>.onrender.com/health` → `{"status":"healthy"}`
+2. `GET https://<render-app>.onrender.com/api/booking/available-dates` → returns JSON array
+3. Open Mini App in Telegram → calendar loads, slots visible
+4. Make a test booking → admin receives notification

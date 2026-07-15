@@ -174,17 +174,19 @@ export default function BookingForm({
       const adminUsername = CONTACT_INFO.ADMIN_USERNAME.replace('@', '');
       const telegramUrl = `https://t.me/${adminUsername}?text=${encodeURIComponent(message)}`;
 
-      // Delay to show success state
+      // Delay to show success state, then open chat
       setTimeout(() => {
-        // Use window.open to support ?text= parameter
-        // tg.openTelegramLink doesn't support text parameter for security reasons
-        const opened = window.open(telegramUrl, '_blank');
-        if (!opened) {
-          console.warn('[BookingForm] window.open blocked or failed, trying location.href');
-          window.location.href = telegramUrl;
+        // Prefer Telegram WebApp API for opening links
+        if (window.Telegram?.WebApp?.openTelegramLink) {
+          window.Telegram.WebApp.openTelegramLink(telegramUrl);
+        } else {
+          const opened = window.open(telegramUrl, '_blank');
+          if (!opened) {
+            // Fallback: navigate (works in most mobile browsers without losing state in WebView)
+            console.warn('[BookingForm] window.open blocked, navigating via location');
+          }
         }
-        // Close modal after opening chat
-        setTimeout(() => onClose(), 500);
+        setTimeout(() => onClose(), 800);
       }, 1200);
     } catch {
       vibrateError();

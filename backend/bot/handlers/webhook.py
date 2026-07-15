@@ -5,7 +5,6 @@ Telegram POSTs updates to /webhook.
 
 import json
 import logging
-import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update

@@ -3,14 +3,12 @@ Telegram notification helpers (used outside of bot handlers).
 """
 
 import logging
-import os
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from config import ADMIN_ID, BOT_TOKEN
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-ADMIN_ID: str = os.getenv("ADMIN_ID", "")
+logger = logging.getLogger(__name__)
 
 
 async def send_telegram_message(

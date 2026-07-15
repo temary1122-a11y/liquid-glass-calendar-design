@@ -1,5 +1,6 @@
 // ============================================================
 // src/hooks/useWebSocket.ts — WebSocket + polling fallback
+// with optional Telegram initData auth
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -15,7 +16,19 @@ interface UseWebSocketReturn {
   sendMessage: (msg: unknown) => void;
 }
 
-export function useWebSocket(url: string): UseWebSocketReturn {
+/**
+ * Build WebSocket URL with optional initData query parameter.
+ * Uses Telegram WebApp initData if available for authentication.
+ */
+function buildWsUrl(baseUrl: string): string {
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData) return baseUrl;
+
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}init_data=${encodeURIComponent(initData)}`;
+}
+
+export function useWebSocket(baseUrl: string): UseWebSocketReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -27,6 +40,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
+      const url = buildWsUrl(baseUrl);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -62,7 +76,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
       console.warn('WebSocket connection failed:', e);
       setIsConnected(false);
     }
-  }, [url]);
+  }, [baseUrl]);
 
   useEffect(() => {
     connect();

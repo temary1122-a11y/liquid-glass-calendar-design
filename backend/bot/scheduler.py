@@ -1,11 +1,11 @@
 """
 APScheduler — reminder job.
 
-Runs every hour, sends reminders to users whose appointment is tomorrow.
+Sends ONE reminder at 20:00 MSK the evening before the appointment.
+Never sends duplicates (tracks reminder_sent in Booking model).
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 
 from aiogram import Bot
@@ -13,26 +13,34 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from config import ADDRESS, BOT_TOKEN
 from database.db import Booking, SessionLocal
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-ADDRESS: str = "Тихий переулок, 4"
-
-# Singleton scheduler
 scheduler = AsyncIOScheduler()
+
+_scheduler_bot: Bot | None = None
+
+
+def _get_scheduler_bot() -> Bot:
+    global _scheduler_bot
+    if _scheduler_bot is None:
+        _scheduler_bot = Bot(
+            token=***
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        )
+    return _scheduler_bot
 
 
 async def send_reminders() -> None:
     """
-    Send appointment reminders for bookings scheduled for tomorrow.
-    Called every hour by APScheduler.
+    Send ONE reminder to each client whose booking is tomorrow,
+    IF they haven't already received a reminder.
+
+    Runs at 20:00 MSK daily (cron: 0 17 UTC = 20:00 MSK).
     """
-    bot = Bot(
-        token=BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
+    bot = _get_scheduler_bot()
 
     tomorrow = (datetime.now() + timedelta(days=1)).date()
     tomorrow_str = tomorrow.strftime("%Y-%m-%d")
@@ -43,78 +51,72 @@ async def send_reminders() -> None:
             .filter(
                 Booking.user_id.isnot(None),
                 Booking.status.in_(["pending", "confirmed"]),
+                Booking.day_date == tomorrow_str,
+                Booking.reminder_sent == 0,  # only unsent reminders
             )
             .all()
         )
 
         reminders_sent = 0
         for booking in bookings:
-            slot = booking.slot
-            if not slot:
-                continue
-            work_day = slot.work_day
-            if not work_day:
-                continue
-
-            if work_day.day_date != tomorrow_str:
-                continue
-
             try:
                 await bot.send_message(
                     chat_id=booking.user_id,
                     text=(
                         f"🔔 <b>Напоминание о записи</b>\n\n"
-                        f"📅 Дата: <b>{work_day.day_date}</b>\n"
-                        f"🕐 Время: <b>{slot.time}</b>\n"
+                        f"📅 Дата: <b>{booking.day_date}</b>\n"
+                        f"🕐 Время: <b>{booking.slot_time}</b>\n"
                         f"📍 Адрес: <b>{ADDRESS}</b>\n\n"
                         f"Чтобы отменить запись: /cancel"
                     ),
                 )
+                booking.reminder_sent = 1
                 reminders_sent += 1
                 logger.info(
                     "Reminder sent to user_id=%s for %s %s",
-                    booking.user_id,
-                    work_day.day_date,
-                    slot.time,
+                    booking.user_id, booking.day_date, booking.slot_time,
                 )
             except Exception as exc:
                 logger.warning(
                     "Failed to send reminder to user_id=%s: %s",
-                    booking.user_id,
-                    exc,
+                    booking.user_id, exc,
                 )
 
-    await bot.session.close()
+        if reminders_sent:
+            db.commit()
+
     logger.info("Reminder job done. Sent: %d", reminders_sent)
 
 
 async def auto_complete_past_bookings() -> None:
     """
-    Automatically complete past bookings (day_date < today) that are still pending or confirmed.
-    Runs once a day.
+    Auto-complete bookings where day_date < today, still pending/confirmed.
+    Runs at 3:00 AM daily.
     """
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
     with SessionLocal() as db:
-        past_bookings = (
+        past = (
             db.query(Booking)
             .filter(
                 Booking.day_date < today_str,
-                Booking.status.in_(["pending", "confirmed"])
+                Booking.status.in_(["pending", "confirmed"]),
             )
             .all()
         )
-        for b in past_bookings:
+        for b in past:
             b.status = "completed"
         db.commit()
-        logger.info("Auto-completed %d past bookings", len(past_bookings))
+        logger.info("Auto-completed %d past bookings", len(past))
 
 
 def start_scheduler() -> None:
     """Register and start the APScheduler."""
+    # Send reminders at 20:00 MSK (17:00 UTC) daily
     scheduler.add_job(
         send_reminders,
-        trigger="interval",
-        hours=1,
+        trigger="cron",
+        hour=17,  # 20:00 MSK = 17:00 UTC
+        minute=0,
         id="reminders",
         replace_existing=True,
         misfire_grace_time=300,
@@ -122,10 +124,10 @@ def start_scheduler() -> None:
     scheduler.add_job(
         auto_complete_past_bookings,
         trigger="cron",
-        hour=3,  # 3 AM daily
+        hour=3,
         minute=0,
         id="auto_complete_bookings",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("Scheduler started — reminder job runs every hour, auto-complete at 3 AM daily")
+    logger.info("Scheduler started — reminders at 20:00 MSK, auto-complete at 3 AM")
