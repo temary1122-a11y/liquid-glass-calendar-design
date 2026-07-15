@@ -6,15 +6,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
+from config import DATABASE_URL
 from utils.crypto import decrypt_phone, encrypt_phone
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    raise ValueError("КРИТИЧЕСКАЯ ОШИБКА: Переменная окружения DATABASE_URL не задана! Подключение к БД невозможно.")
-
-# Убираем случайные пробелы, которые могли появиться при копировании в Render
-DATABASE_URL = DATABASE_URL.strip()
 
 # Render предоставляет строку postgres://, а SQLAlchemy требует postgresql://
 if DATABASE_URL.startswith("postgres://"):
