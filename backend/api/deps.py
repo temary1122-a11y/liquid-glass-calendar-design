@@ -89,9 +89,18 @@ def extract_user_id_from_init_data(init_data: str) -> int | None:
             raw = unquote(raw)
             try:
                 user_obj = json.loads(raw)
-                return int(user_obj.get("id", 0)) or None
+                uid = int(user_obj.get("id", 0))
+                if uid:
+                    return uid
             except (json.JSONDecodeError, ValueError):
-                return None
+                pass
+    # Also try from plain user_id param (for debugging / simple auth)
+    for pair in init_data.split("&"):
+        if pair.startswith("user_id="):
+            try:
+                return int(pair.split("=", 1)[1])
+            except ValueError:
+                pass
     return None
 
 

@@ -63,7 +63,7 @@ async def transcribe_voice(audio_path: str) -> Optional[str]:
         async with httpx.AsyncClient(timeout=TRANSCRIPTION_TIMEOUT) as client:
             with open(audio_path, "rb") as f:
                 files = {
-                    "file": (audio_path, f, "audio/ogg"),
+                    "file": (os.path.basename(audio_path), f, "audio/ogg"),
                 }
                 data = {
                     "model": TRANSCRIPTION_MODEL,
