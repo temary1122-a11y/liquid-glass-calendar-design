@@ -27,7 +27,7 @@ def _get_scheduler_bot() -> Bot:
     global _scheduler_bot
     if _scheduler_bot is None:
         _scheduler_bot = Bot(
-            token=***
+            token=BOT_TOKEN,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return _scheduler_bot
