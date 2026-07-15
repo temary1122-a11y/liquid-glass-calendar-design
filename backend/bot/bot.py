@@ -8,6 +8,10 @@ Exports:
 Used by main.py to:
   1. Register webhook on startup
   2. Feed updates from POST /webhook
+
+Router order matters in aiogram 3: first match wins.
+- common_router FIRST: handles button text, /start, /cancel, callbacks
+- admin_voice LAST: catch-all for admin voice/bulk/text commands
 """
 
 from aiogram import Bot, Dispatcher
@@ -16,7 +20,6 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, BotCommandScopeDefault
 
-from bot.handlers.bulk_slots import router as bulk_router
 from bot.handlers.common import router as common_router
 from bot.handlers.admin_voice import router as admin_voice_router
 from config import BOT_TOKEN
@@ -26,19 +29,15 @@ from config import BOT_TOKEN
 # ---------------------------------------------------------------------------
 
 bot = Bot(
-    token=BOT_TOKEN,
+    token=***
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 
 dp = Dispatcher(storage=MemoryStorage())
 
-# Register routers
-# Order matters: Command-filtered routers first, then F.text catch-all routers last
-# admin_voice has F.voice + F.text ~F starts with / → won't catch /bulk
-# bulk_router has Command('bulk') → won't interfere with admin_voice text handler
-dp.include_router(admin_voice_router)  # admin voice/text commands
-dp.include_router(bulk_router)  # admin /bulk command (Command filter, safe anywhere)
-dp.include_router(common_router)
+# Register routers — ORDER MATTERS (first match wins)
+dp.include_router(common_router)       # /start, /cancel, /help, button text, callbacks
+dp.include_router(admin_voice_router)  # /vc, /bulk, voice, bulk auto-detect, admin text cmd
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +46,6 @@ dp.include_router(common_router)
 
 
 async def set_bot_commands():
-    """Устанавливает команды бота для меню."""
     commands = [
         BotCommand(command="start", description="📅 Записаться"),
         BotCommand(command="mybooking", description="📋 Моя запись"),
