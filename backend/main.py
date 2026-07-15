@@ -103,6 +103,13 @@ async def on_startup() -> None:
     init_db()
     logger.info("Database ready.")
 
+    # 1.5 Run pending migrations
+    try:
+        from migrations.add_reminder_sent import migrate
+        migrate()
+    except Exception as exc:
+        logger.warning("Migration failed (may already be applied): %s", exc)
+
     # 2. Inject bot/dp into webhook handler
     set_bot_and_dispatcher(bot, dp)
 
