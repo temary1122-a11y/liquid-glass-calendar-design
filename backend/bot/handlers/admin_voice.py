@@ -7,15 +7,10 @@ Handles:
   - Fallback: regex extraction when Groq API is unavailable
   - Live progress steps with message editing for smooth UX
 
-Security:
-  - ALL handlers check `message.from_user.id == ADMIN_ID_INT`
-  - Non-admin users get a silent ignore (no error, no info leak)
-
-Examples of supported commands (voice or text):
-  «Запиши Алину на 12:00 21 числа»
-  «Отмени запись Алины»
-  «Кто записан 21 числа?»
-  «Выходной 21 числа»
+IMPORTANT: The F.text handler below has PRIORITY over common_router.
+Admins who type something that doesn't look like a command will get NO response
+(aiogram cannot pass-through after a router has consumed the update).
+Use /bulk or /start for non-command admin messages.
 """
 
 import logging
@@ -44,12 +39,6 @@ async def _edit_progress(msg: types.Message, step: str, total_steps: int,
     if detail:
         text += f"\n<i>{detail}</i>"
     await msg.edit_text(text, parse_mode="HTML")
-
-
-# ── Gate ────────────────────────────────────────────────
-
-def _is_admin(message: types.Message) -> bool:
-    return message.from_user is not None and message.from_user.id == ADMIN_ID_INT
 
 
 # ── /vc ────────────────────────────────────────────────
@@ -144,59 +133,5 @@ async def handle_admin_voice(message: types.Message, bot: Bot) -> None:
     await status_msg.edit_text(
         f"{result}\n\n"
         f"<i>🎤 «{transcribed}» {conf_emoji}</i>",
-        parse_mode="HTML",
-    )
-
-
-# ── Text command handler ──────────────────────────────
-
-@router.message(
-    F.text,
-    F.from_user.id == ADMIN_ID_INT,
-    ~F.text.startswith("/"),
-)
-async def handle_admin_text_command(message: types.Message) -> None:
-    """Admin text command → extract → execute → reply with progress."""
-    text = message.text.strip()
-    if not text:
-        return
-
-    cmd_indicators = [
-        "запиш", "отмен", "удал", "покаж", "посмотр",
-        "кто", "статус", "выходной", "открой", "закрой",
-        "добавь слот", "добавь день",
-    ]
-    if not any(ind in text.lower() for ind in cmd_indicators):
-        return
-
-    # Progress message
-    status_msg = await message.reply(
-        f"💬 <b>Обрабатываю...</b>\n\n<code>[▰▰▱▱]</code>",
-        parse_mode="HTML",
-    )
-
-    # Extract
-    await _edit_progress(status_msg, "🔍 <b>Анализирую...</b>", 4, 3,
-                          detail=f"«{text[:60]}{'...' if len(text) > 60 else ''}»")
-    cmd = await extract_command(text)
-
-    # Execute
-    action_labels = {
-        "book": "✏️ Создаю запись...",
-        "cancel": "🗑️ Отменяю...",
-        "check": "📋 Смотрю...",
-        "set_day_off": "📴 Закрываю день...",
-        "set_day_on": "📅 Открываю день...",
-        "unknown": "🤔 Обрабатываю...",
-    }
-    action_label = action_labels.get(cmd.get("action", "unknown"), "⚙️ Выполняю...")
-    await _edit_progress(status_msg, action_label, 4, 4)
-    result = await execute_command(cmd)
-
-    conf_emoji = {"high": "🎯", "medium": "👍", "low": "🤔"}.get(
-        cmd.get("confidence", "medium"), "👍")
-    await status_msg.edit_text(
-        f"{result}\n\n"
-        f"<i>💬 «{text[:100]}» {conf_emoji}</i>",
         parse_mode="HTML",
     )
