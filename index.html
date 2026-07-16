@@ -4,70 +4,61 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>YourLashes — Запись онлайн</title>
-    <meta name="description" content="Запись к мастеру ресниц YourLashes" />
     <meta name="theme-color" content="#f0e4d8" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+      :root { --peach: #c4967a; --peach-light: #f7d5bc; --cream: #f0e4d8; }
       #splash {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        background: #f0e4d8;
-        background-size: cover;
-        background-position: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        transition: opacity 0.4s ease-out;
-        gap: 12px;
+        position: fixed; inset: 0; z-index: 9999;
+        background: var(--cream);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.4s ease-out; gap: 24px;
       }
-      #splash img {
-        width: 180px;
-        height: auto;
+      #splash .logo-wrap {
+        position: relative; display: flex; align-items: center; justify-content: center;
       }
-      #splash .splash-ring {
-        position: absolute;
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        border: 2px solid rgba(196, 150, 122, 0.4);
-        animation: splashRing 1.8s ease-out infinite;
+      #splash .logo-wrap img {
+        width: 180px; height: auto;
+        animation: splashVibe 2s ease-in-out infinite;
       }
-      #splash .splash-ring:nth-child(2) { animation-delay: 0.6s; }
-      #splash .splash-ring:nth-child(3) { animation-delay: 1.2s; }
-      @keyframes splashRing {
-        0% { transform: scale(0.8); opacity: 0.8; }
-        50% { opacity: 0.3; }
-        100% { transform: scale(2.4); opacity: 0; }
+      /* Kawaii progress ring */
+      #splash .ring-wrap {
+        position: relative; width: 56px; height: 56px;
+      }
+      #splash .ring-wrap svg {
+        width: 56px; height: 56px; transform: rotate(-90deg);
+      }
+      #splash .ring-wrap .track {
+        fill: none; stroke: #f7d5bc; stroke-width: 3;
+      }
+      #splash .ring-wrap .fill {
+        fill: none; stroke: #c4967a; stroke-width: 3;
+        stroke-dasharray: 150; stroke-dashoffset: 150;
+        stroke-linecap: round;
+        animation: ringFill 1.6s ease-in-out infinite;
+      }
+      #splash .ring-wrap .dot {
+        position: absolute; top: 50%; left: 50%;
+        width: 10px; height: 10px; margin: -5px 0 0 -5px;
+        border-radius: 50%; background: #c4967a;
+        animation: ringDot 1.6s ease-in-out infinite;
+      }
+      @keyframes ringFill {
+        0% { stroke-dashoffset: 150; opacity: 0.6; }
+        50% { stroke-dashoffset: 40; opacity: 1; }
+        100% { stroke-dashoffset: 150; opacity: 0.6; }
+      }
+      @keyframes ringDot {
+        0%, 100% { transform: scale(0.8); opacity: 0.5; }
+        50% { transform: scale(1.3); opacity: 1; }
       }
       @keyframes splashVibe {
         0%, 100% { transform: scale(1); }
-        25% { transform: scale(1.03) rotate(0.5deg); }
+        25% { transform: scale(1.04) rotate(0.5deg); }
         50% { transform: scale(0.97) rotate(-0.5deg); }
-        75% { transform: scale(1.02) rotate(0.3deg); }
-      }
-      #splash .logo-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      #splash .logo-wrap img {
-        animation: splashVibe 2s ease-in-out infinite;
-      }
-      #splash p {
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #9e8476;
-        font-size: 12px;
-        letter-spacing: 1px;
-        animation: splashPulse 1.5s ease-in-out infinite;
-      }
-      @keyframes splashPulse {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 1; }
+        75% { transform: scale(1.03) rotate(0.3deg); }
       }
       #splash.hidden { opacity: 0; pointer-events: none; }
     </style>
@@ -77,13 +68,12 @@
         try {
           var be = (window.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com');
           var xhr = new XMLHttpRequest();
-          xhr.open('GET', be + '/api/settings', false);
-          xhr.timeout = 3000;
+          xhr.open('GET', be + '/api/settings', false); xhr.timeout = 3000;
           xhr.onreadystatechange = function() {
             if (xhr.readyState === 4 && xhr.status === 200) {
-              var data = JSON.parse(xhr.responseText);
-              if (data.custom_background) {
-                bg = "url('" + be + "/static/background.jpg?v=" + (data.bg_updated_at || Date.now()) + "')";
+              var d = JSON.parse(xhr.responseText);
+              if (d.custom_background) {
+                bg = "url('" + be + "/static/background.jpg?v=" + (d.bg_updated_at || Date.now()) + "')";
               }
             }
           };
@@ -95,11 +85,11 @@
   </head>
   <body>
     <div id="splash">
-      <div class="splash-ring"></div>
-      <div class="splash-ring"></div>
-      <div class="splash-ring"></div>
       <div class="logo-wrap"><img src="/logo.png" alt="SOTOKA" /></div>
-      <p>загрузка...</p>
+      <div class="ring-wrap">
+        <svg viewBox="0 0 56 56"><circle class="track" cx="28" cy="28" r="24"/><circle class="fill" cx="28" cy="28" r="24"/></svg>
+        <div class="dot"></div>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

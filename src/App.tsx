@@ -12,7 +12,7 @@ import { SOCIAL_LINKS } from './config';
 import { vibrateMedium, vibrateLight } from './utils/vibration';
 import { useWebSocket } from './hooks/useWebSocket';
 import { apiClient } from './api/client';
-import { LOGO_DATA_URL, LOGO_WIDTH, LOGO_HEIGHT } from './assets/logo';
+import { LOGO_SRC, LOGO_WIDTH, LOGO_HEIGHT } from './assets/logo';
 
 type View = 'client' | 'admin';
 
@@ -128,11 +128,11 @@ export default function App() {
         >
           <div className="flex items-center gap-2">
             <motion.img
-              src={LOGO_DATA_URL}
+              src={LOGO_SRC}
               alt="SOTOKA"
               width={LOGO_WIDTH}
               height={LOGO_HEIGHT}
-              className="h-10 w-auto select-none"
+              className="h-14 w-auto select-none"
               style={{ imageRendering: 'auto' }}
             />
           </div>
