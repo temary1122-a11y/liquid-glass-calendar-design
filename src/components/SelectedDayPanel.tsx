@@ -270,9 +270,8 @@ function SelectedDayPanel({
                       <div className="flex items-center gap-1.5 mb-1">
                         <StickyNote size={11} className="text-[#8b7355]" />
                         <span className="text-[10px] font-medium text-[#8b7355] uppercase tracking-wider">
-                          Заметка админа
+                          заметка для тебя
                         </span>
-                        <span className="text-[9px] text-[#9e8476]">(только для вас)</span>
                       </div>
                       <textarea
                         value={editForm.admin_note}

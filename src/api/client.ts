@@ -327,6 +327,23 @@ class ApiClient {
       return { success: false, message: 'Ошибка соединения' };
     }
   }
+
+  // ── Settings ────────────────────────────────────────────
+
+  async getSettings(): Promise<{
+    custom_background: boolean;
+    bg_updated_at: string | null;
+    bg_info: { width: number; height: number; file_size_kb: number } | null;
+  }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/settings`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.error('getSettings error:', e);
+      return { custom_background: false, bg_updated_at: null, bg_info: null };
+    }
+  }
 }
 
 export const apiClient = new ApiClient(BACKEND_URL);

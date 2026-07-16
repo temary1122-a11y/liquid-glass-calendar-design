@@ -446,6 +446,8 @@ async def cmd_help(message: types.Message) -> None:
             "<b>Для админа:</b>\n"
             "🎤 <b>/vc</b> — голосовые команды: запись, отмена, просмотр\n"
             "📋 <b>/bulk</b> — массовое добавление окон\n"
+            "🖼 <b>/setbg</b> — сменить фон Mini App (отправьте фото)\n"
+            "🔄 <b>/resetbg</b> — вернуть дефолтный фон\n"
         )
 
     help_text += (

@@ -11,6 +11,7 @@ import ClientProfile from './components/ClientProfile';
 import { SOCIAL_LINKS } from './config';
 import { vibrateMedium, vibrateLight } from './utils/vibration';
 import { useWebSocket } from './hooks/useWebSocket';
+import { apiClient } from './api/client';
 
 type View = 'client' | 'admin';
 
@@ -40,6 +41,19 @@ export default function App() {
     if (user) {
       setUserId(user.id);
     }
+
+    // Dynamic background: check if admin uploaded custom background
+    (async () => {
+      try {
+        const settings = await apiClient.getSettings();
+        if (settings.custom_background) {
+          const bgUrl = `${import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com'}/static/background.jpg`;
+          document.body.style.backgroundImage = `url('${bgUrl}?v=${settings.bg_updated_at || Date.now()}')`;
+        }
+      } catch {
+        // Keep default background on error
+      }
+    })();
 
     // Dynamic admin check: ask backend (no hardcoded ADMIN_ID in frontend!)
     async function checkAdmin() {

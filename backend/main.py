@@ -18,6 +18,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.staticfiles import StaticFiles
 
 from config import PORT, WEBHOOK_URL
 from database.db import init_db
@@ -89,6 +90,15 @@ app.include_router(profile.router)
 app.include_router(admin.router)
 app.include_router(ws_router)
 app.include_router(webhook_router)
+
+from api.routes.settings import router as settings_router
+app.include_router(settings_router)
+
+# Static files — background images etc.
+import os as _os
+_STATIC_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "static")
+_os.makedirs(_STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 # ---------------------------------------------------------------------------
 # Startup / Shutdown

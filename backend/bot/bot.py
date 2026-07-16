@@ -22,6 +22,7 @@ from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from bot.handlers.common import router as common_router
 from bot.handlers.admin_voice import router as admin_voice_router
+from bot.handlers.admin_photo import router as admin_photo_router
 from config import BOT_TOKEN
 
 # ---------------------------------------------------------------------------
@@ -37,6 +38,7 @@ dp = Dispatcher(storage=MemoryStorage())
 
 # Register routers -- ORDER MATTERS (first match wins)
 dp.include_router(common_router)       # /start, /cancel, /help, button text, callbacks
+dp.include_router(admin_photo_router)  # /setbg, photo, document (admin background change)
 dp.include_router(admin_voice_router)  # /vc, /bulk, voice, bulk auto-detect, admin text cmd
 
 
@@ -52,6 +54,8 @@ async def set_bot_commands():
         BotCommand(command="cancel", description="❌ Отменить запись"),
         BotCommand(command="vc", description="🎤 Голосовые команды (админ)"),
         BotCommand(command="bulk", description="📋 Массовое добавление слотов (админ)"),
+        BotCommand(command="setbg", description="🖼 Сменить фон Mini App (админ)"),
+        BotCommand(command="resetbg", description="🔄 Сбросить фон на дефолтный (админ)"),
         BotCommand(command="help", description="❓ Помощь"),
     ]
 
