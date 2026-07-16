@@ -132,7 +132,7 @@ export default function App() {
               alt="SOTOKA"
               width={LOGO_WIDTH}
               height={LOGO_HEIGHT}
-              className="h-48 w-auto select-none"
+              className="w-64 h-auto max-w-[85%] select-none"
               style={{ imageRendering: 'auto' }}
             />
           </div>
