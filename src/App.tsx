@@ -121,7 +121,7 @@ export default function App() {
       <div className="relative z-10 max-w-sm mx-auto px-3 pt-4 pb-8">
         {/* ── Header ── */}
         <motion.div
-          className="flex items-center justify-between"
+          className="flex items-center justify-between mb-2"
           initial={appReady ? { opacity: 0, y: -20 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
