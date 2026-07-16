@@ -1,5 +1,5 @@
-// Logo — high-quality PNG, relative path for GitHub Pages
-// 769×1024px RGBA, smooth anti-aliased, transparent background
+// Logo — high-quality PNG, cropped to content bounds  
+// 640×195px RGBA, transparent background, smooth anti-aliased
 export const LOGO_SRC = './logo.png';
-export const LOGO_WIDTH = 769;
-export const LOGO_HEIGHT = 1024;
+export const LOGO_WIDTH = 640;
+export const LOGO_HEIGHT = 195;
