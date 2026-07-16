@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-      /* Splash screen — shown immediately, before any JS/CSS loads */
       #splash {
         position: fixed;
         inset: 0;
@@ -19,23 +18,60 @@
         background-size: cover;
         background-position: center;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        transition: opacity 0.5s ease-out;
+        transition: opacity 0.4s ease-out;
+        gap: 12px;
       }
       #splash img {
         width: 180px;
-        height: 53px;
+        height: auto;
+      }
+      #splash .splash-ring {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        border: 2px solid rgba(196, 150, 122, 0.4);
+        animation: splashRing 1.8s ease-out infinite;
+      }
+      #splash .splash-ring:nth-child(2) { animation-delay: 0.6s; }
+      #splash .splash-ring:nth-child(3) { animation-delay: 1.2s; }
+      @keyframes splashRing {
+        0% { transform: scale(0.8); opacity: 0.8; }
+        50% { opacity: 0.3; }
+        100% { transform: scale(2.4); opacity: 0; }
+      }
+      @keyframes splashVibe {
+        0%, 100% { transform: scale(1); }
+        25% { transform: scale(1.03) rotate(0.5deg); }
+        50% { transform: scale(0.97) rotate(-0.5deg); }
+        75% { transform: scale(1.02) rotate(0.3deg); }
+      }
+      #splash .logo-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #splash .logo-wrap img {
+        animation: splashVibe 2s ease-in-out infinite;
+      }
+      #splash p {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #9e8476;
+        font-size: 12px;
+        letter-spacing: 1px;
         animation: splashPulse 1.5s ease-in-out infinite;
       }
       @keyframes splashPulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.05); opacity: 0.8; }
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
       }
       #splash.hidden { opacity: 0; pointer-events: none; }
     </style>
     <script>
-      // Set background BEFORE any rendering — no flash
       (function() {
         var bg = "url('/background.jpg')";
         try {
@@ -58,7 +94,13 @@
     </script>
   </head>
   <body>
-    <div id="splash"><img src="/logo.png" alt="SOTOKA" width="180" height="53" /></div>
+    <div id="splash">
+      <div class="splash-ring"></div>
+      <div class="splash-ring"></div>
+      <div class="splash-ring"></div>
+      <div class="logo-wrap"><img src="/logo.png" alt="SOTOKA" /></div>
+      <p>загрузка...</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

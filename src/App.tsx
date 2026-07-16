@@ -132,10 +132,8 @@ export default function App() {
               alt="SOTOKA"
               width={LOGO_WIDTH}
               height={LOGO_HEIGHT}
-              className="h-12 w-auto select-none sticker-bounce"
-              initial={appReady ? { scale: 1.8, x: 60, y: 150 } : false}
-              animate={{ scale: 1, x: 0, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+              className="h-10 w-auto select-none"
+              style={{ imageRendering: 'auto' }}
             />
           </div>
 
