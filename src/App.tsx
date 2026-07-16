@@ -112,7 +112,11 @@ export default function App() {
         {/* ── Header ── */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <span className="text-2xl select-none sticker-bounce" aria-hidden>🎀</span>
+            <img
+              src="/logo.png"
+              alt="SOTOKA"
+              className="h-10 w-auto select-none sticker-bounce"
+            />
             <div>
               <h1 className="text-[#3d2b1f] text-xl font-semibold leading-tight">
                 YourLashes
