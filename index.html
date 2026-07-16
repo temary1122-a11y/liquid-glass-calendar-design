@@ -9,6 +9,27 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Set background BEFORE React renders — avoid flash of default bg
+      (async () => {
+        try {
+          var backend = (window.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com');
+          // Expose for React
+          window.__CUSTOM_BG_URL__ = null;
+          var res = await fetch(backend + '/api/settings');
+          var data = await res.json();
+          if (data.custom_background) {
+            var url = backend + '/static/background.jpg?v=' + (data.bg_updated_at || Date.now());
+            document.body.style.backgroundImage = "url('" + url + "')";
+            window.__CUSTOM_BG_URL__ = url;
+          } else {
+            document.body.style.backgroundImage = "url('/background.jpg')";
+          }
+        } catch (e) {
+          document.body.style.backgroundImage = "url('/background.jpg')";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

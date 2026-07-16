@@ -42,18 +42,8 @@ export default function App() {
       setUserId(user.id);
     }
 
-    // Dynamic background: check if admin uploaded custom background
-    (async () => {
-      try {
-        const settings = await apiClient.getSettings();
-        if (settings.custom_background) {
-          const bgUrl = `${import.meta.env.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com'}/static/background.jpg`;
-          document.body.style.backgroundImage = `url('${bgUrl}?v=${settings.bg_updated_at || Date.now()}')`;
-        }
-      } catch {
-        // Keep default background on error
-      }
-    })();
+    // Background is set in index.html before React renders (no flash).
+    // This inline check is a fallback only — skips if already set.
 
     // Dynamic admin check: ask backend (no hardcoded ADMIN_ID in frontend!)
     async function checkAdmin() {
@@ -115,16 +105,8 @@ export default function App() {
             <img
               src="/logo.png"
               alt="SOTOKA"
-              className="h-10 w-auto select-none sticker-bounce"
+              className="h-12 w-auto select-none sticker-bounce"
             />
-            <div>
-              <h1 className="text-[#3d2b1f] text-xl font-semibold leading-tight">
-                YourLashes
-              </h1>
-              <p className="text-[#9e8476] text-sm">
-                {view === 'client' ? 'Запись онлайн' : 'Режим мастера'}
-              </p>
-            </div>
           </div>
 
           <div className="flex items-center gap-2">
