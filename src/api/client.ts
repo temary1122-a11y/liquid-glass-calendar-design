@@ -78,6 +78,7 @@ export interface AdminBooking {
   username?: string;
   user_id?: number;
   note?: string;
+  admin_note?: string;
   status: string;
 }
 
@@ -260,6 +261,7 @@ class ApiClient {
     time: string;
     username?: string;
     note?: string;
+    admin_note?: string;
     status?: string;
   }): Promise<{ success: boolean; message: string; data?: { type: string; username: string; text: string } }> {
     try {

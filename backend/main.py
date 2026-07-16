@@ -111,6 +111,12 @@ async def on_startup() -> None:
     except Exception as exc:
         logger.warning("Migration failed (may already be applied): %s", exc)
 
+    try:
+        from migrations.add_admin_note import migrate
+        migrate()
+    except Exception as exc:
+        logger.warning("Migration add_admin_note failed: %s", exc)
+
     # 2. Inject bot/dp into webhook handler
     set_bot_and_dispatcher(bot, dp)
 

@@ -37,6 +37,7 @@ class AdminBooking(BaseModel):
     username: Optional[str] = None
     user_id: Optional[int] = None
     note: Optional[str] = None
+    admin_note: Optional[str] = None
     status: str
 
 
@@ -86,6 +87,7 @@ class UpdateClientRequest(BaseModel):
     time: str = Field(min_length=5, max_length=5)
     username: Optional[str] = Field(default=None, max_length=255)
     note: Optional[str] = Field(default=None, max_length=1000)
+    admin_note: Optional[str] = Field(default=None, max_length=2000)
     status: Optional[str] = Field(default=None, max_length=20)
 
 
@@ -158,6 +160,7 @@ async def get_work_days_with_bookings(
                     username=booking.username,
                     user_id=booking.user_id,
                     note=booking.note,
+                    admin_note=booking.admin_note,
                     status=booking.status,
                 )
             admin_slots.append(
@@ -382,6 +385,8 @@ async def update_client(
             if request.username is not None:
                 booking.username = request.username
             booking.note = request.note
+            if request.admin_note is not None:
+                booking.admin_note = request.admin_note
             if request.status:
                 booking.status = request.status
             logger.info("Admin updated booking: username=%s old_status=%s new_status=%s",

@@ -65,6 +65,7 @@ class Booking(Base):
     cancelled_at = Column(String, nullable=True)  # ISO format string (Supabase: text)
     service_id = Column(String(50), nullable=True)  # NEW field (Supabase has it)
     reminder_sent = Column(Integer, default=0)  # 0 = not sent, 1 = reminder already sent
+    admin_note = Column(Text, nullable=True)  # admin private note (no-show, special requests, etc.)
 
     # Relationship to TimeSlot (via day_date and slot_time)
     slot = relationship(

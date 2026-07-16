@@ -95,7 +95,6 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
       className={`
         relative rounded-3xl p-2 min-h-[64px] w-full text-left
         liquid-glass-calendar transition-all duration-200
-        ${isPast ? 'opacity-40' : ''}
         ${isSelected ? 'selected' : ''}
         ${isToday_ && !isSelected ? 'border border-[#2e7d5e]/40' : ''}
       `}
@@ -104,12 +103,13 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
       <span className={`
         absolute top-2 left-2 z-20 text-[11px] font-semibold leading-none
         ${isToday_ ? 'text-[#2e7d5e]' : 'text-[#3d2b1f]'}
+        ${isPast ? 'text-[#9e8476]' : ''}
       `}>
         {format(date, 'd')}
       </span>
 
-      {/* Slot dots */}
-      {hasSlots && !isPast && (
+      {/* Slot dots — dimmed for past days, normal for today/future */}
+      {hasSlots && (
         <div className="relative z-20 flex flex-wrap gap-0.5 mt-4">
           {slots.map((slot) => {
             const client = bookedClients.find(c => c.time === slot);
@@ -121,11 +121,13 @@ function AdminDayCard({ date, slots, isCurrentMonth, isSelected, onClick, booked
                 key={slot}
                 className={`
                   w-1.5 h-1.5 rounded-full inline-block
-                  ${!isBooked
-                    ? 'bg-[#a07060]/60'
-                    : status === 'pending'
-                      ? 'bg-[#ef4444]'
-                      : 'bg-[#2e7d5e]'
+                  ${isPast
+                    ? 'bg-[#8b7355]/30'
+                    : !isBooked
+                      ? 'bg-[#a07060]/60'
+                      : status === 'pending'
+                        ? 'bg-[#ef4444]'
+                        : 'bg-[#2e7d5e]'
                   }
                 `}
               />
