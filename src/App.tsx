@@ -119,27 +119,25 @@ export default function App() {
       </div>
 
       <div className="relative z-10 max-w-sm mx-auto px-3 pt-4 pb-8">
-        {/* ── Logo (absolute, behind content) ── */}
-        <motion.img
-          src={LOGO_SRC}
-          alt="SOTOKA"
-          width={LOGO_WIDTH}
-          height={LOGO_HEIGHT}
-          className="absolute top-3 left-3 h-48 w-auto select-none pointer-events-none"
-          style={{ imageRendering: 'auto' }}
-          initial={appReady ? { opacity: 0 } : false}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.05 }}
-        />
-
-        {/* ── Header bar ── */}
+        {/* ── Header ── */}
         <motion.div
-          className="flex items-center justify-end mb-5"
+          className="flex items-center justify-between"
           initial={appReady ? { opacity: 0, y: -20 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center shrink-0">
+            <motion.img
+              src={LOGO_SRC}
+              alt="SOTOKA"
+              width={LOGO_WIDTH}
+              height={LOGO_HEIGHT}
+              className="h-48 w-auto select-none"
+              style={{ imageRendering: 'auto' }}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
             {/* Connection indicator */}
             <div className="flex items-center gap-1">
               {isConnected ? (
