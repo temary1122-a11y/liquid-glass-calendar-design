@@ -63,29 +63,35 @@
       #splash.hidden { opacity: 0; pointer-events: none; }
     </style>
     <script>
+      // Set default background immediately (no blocking XHR)
+      // Custom background is loaded async via React
+      document.documentElement.style.setProperty('--app-bg', "url('./background.jpg')");
+
+      // Async load custom background from backend (non-blocking)
       (function() {
-        var bg = "url('/background.jpg')";
-        try {
-          var be = (window.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com');
-          var xhr = new XMLHttpRequest();
-          xhr.open('GET', be + '/api/settings', false); xhr.timeout = 3000;
-          xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
+        var be = 'https://liquid-glass-calendar-design.onrender.com';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', be + '/api/settings', true);
+        xhr.timeout = 5000;
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            try {
               var d = JSON.parse(xhr.responseText);
               if (d.custom_background) {
-                bg = "url('" + be + "/static/background.jpg?v=" + (d.bg_updated_at || Date.now()) + "')";
+                var bgUrl = "url('" + be + "/static/background.jpg?v=" + (d.bg_updated_at || Date.now()) + "')";
+                document.documentElement.style.setProperty('--app-bg', bgUrl);
+                document.body.style.backgroundImage = bgUrl;
               }
-            }
-          };
-          xhr.send();
-        } catch(e) {}
-        document.documentElement.style.setProperty('--app-bg', bg);
+            } catch(e) {}
+          }
+        };
+        xhr.send();
       })();
     </script>
   </head>
   <body>
     <div id="splash">
-      <div class="logo-wrap"><img src="/logo.png" alt="SOTOKA" /></div>
+      <div class="logo-wrap"><img src="./logo.png" alt="SOTOKA" /></div>
       <div class="ring-wrap">
         <svg viewBox="0 0 56 56"><circle class="track" cx="28" cy="28" r="24"/><circle class="fill" cx="28" cy="28" r="24"/></svg>
         <div class="dot"></div>
