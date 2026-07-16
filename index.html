@@ -5,33 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>YourLashes — Запись онлайн</title>
     <meta name="description" content="Запись к мастеру ресниц YourLashes" />
-    <meta name="theme-color" content="#f7d5bc" />
+    <meta name="theme-color" content="#f0e4d8" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      /* Splash screen — shown immediately, before any JS/CSS loads */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #f0e4d8;
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.5s ease-out;
+      }
+      #splash img {
+        width: 180px;
+        height: 53px;
+        animation: splashPulse 1.5s ease-in-out infinite;
+      }
+      @keyframes splashPulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+      }
+      #splash.hidden { opacity: 0; pointer-events: none; }
+    </style>
     <script>
-      // Set background BEFORE React renders — avoid flash of default bg
-      (async () => {
+      // Set background BEFORE any rendering — no flash
+      (function() {
+        var bg = "url('/background.jpg')";
         try {
-          var backend = (window.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com');
-          // Expose for React
-          window.__CUSTOM_BG_URL__ = null;
-          var res = await fetch(backend + '/api/settings');
-          var data = await res.json();
-          if (data.custom_background) {
-            var url = backend + '/static/background.jpg?v=' + (data.bg_updated_at || Date.now());
-            document.body.style.backgroundImage = "url('" + url + "')";
-            window.__CUSTOM_BG_URL__ = url;
-          } else {
-            document.body.style.backgroundImage = "url('/background.jpg')";
-          }
-        } catch (e) {
-          document.body.style.backgroundImage = "url('/background.jpg')";
-        }
+          var be = (window.VITE_BACKEND_URL || 'https://liquid-glass-calendar-design.onrender.com');
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', be + '/api/settings', false);
+          xhr.timeout = 3000;
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+              var data = JSON.parse(xhr.responseText);
+              if (data.custom_background) {
+                bg = "url('" + be + "/static/background.jpg?v=" + (data.bg_updated_at || Date.now()) + "')";
+              }
+            }
+          };
+          xhr.send();
+        } catch(e) {}
+        document.documentElement.style.setProperty('--app-bg', bg);
       })();
     </script>
   </head>
   <body>
+    <div id="splash"><img src="/logo.png" alt="SOTOKA" width="180" height="53" /></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

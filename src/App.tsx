@@ -12,6 +12,7 @@ import { SOCIAL_LINKS } from './config';
 import { vibrateMedium, vibrateLight } from './utils/vibration';
 import { useWebSocket } from './hooks/useWebSocket';
 import { apiClient } from './api/client';
+import { LOGO_DATA_URL, LOGO_WIDTH, LOGO_HEIGHT } from './assets/logo';
 
 type View = 'client' | 'admin';
 
@@ -21,9 +22,25 @@ export default function App() {
   const [userId, setUserId] = useState<number | null>(null);
   const [hasActiveBooking, setHasActiveBooking] = useState(false);
   const [bookingRefreshKey, setBookingRefreshKey] = useState(0);
+  const [appReady, setAppReady] = useState(false);
 
   const wsUrl = import.meta.env.VITE_WS_URL || 'wss://liquid-glass-calendar-design.onrender.com/ws';
   const { isConnected } = useWebSocket(wsUrl);
+
+  // ── Splash → App transition ────────────────────────────
+
+  useEffect(() => {
+    // Hide splash when React mounts
+    const splash = document.getElementById('splash');
+    if (splash) {
+      // Small delay for smooth transition
+      setTimeout(() => {
+        splash.classList.add('hidden');
+        setTimeout(() => splash.remove(), 600);
+      }, 400);
+    }
+    setAppReady(true);
+  }, []);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -42,8 +59,11 @@ export default function App() {
       setUserId(user.id);
     }
 
-    // Background is set in index.html before React renders (no flash).
-    // This inline check is a fallback only — skips if already set.
+    // Apply background from CSS variable (set in index.html before render)
+    const bg = document.documentElement.style.getPropertyValue('--app-bg');
+    if (bg && bg !== 'none') {
+      document.body.style.backgroundImage = bg;
+    }
 
     // Dynamic admin check: ask backend (no hardcoded ADMIN_ID in frontend!)
     async function checkAdmin() {
@@ -100,12 +120,22 @@ export default function App() {
 
       <div className="relative z-10 max-w-sm mx-auto px-3 pt-4 pb-8">
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-5">
+        <motion.div
+          className="flex items-center justify-between mb-5"
+          initial={appReady ? { opacity: 0, y: -20 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+        >
           <div className="flex items-center gap-2">
-            <img
-              src="/logo.png"
+            <motion.img
+              src={LOGO_DATA_URL}
               alt="SOTOKA"
+              width={LOGO_WIDTH}
+              height={LOGO_HEIGHT}
               className="h-12 w-auto select-none sticker-bounce"
+              initial={appReady ? { scale: 1.8, x: 60, y: 150 } : false}
+              animate={{ scale: 1, x: 0, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
             />
           </div>
 
@@ -139,7 +169,7 @@ export default function App() {
               </motion.button>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Client header hint ── */}
         <AnimatePresence mode="wait">
