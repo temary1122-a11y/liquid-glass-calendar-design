@@ -23,6 +23,7 @@ from config import ADMIN_ID_INT, GROQ_API_KEY
 from services.admin_command import execute_command
 from services.bulk_parser import parse_bulk
 from services.groq_client import extract_command, transcribe_voice
+from bot.handlers.ai_chat import ask_groq
 from database.db import SessionLocal, TimeSlot, WorkDay
 
 logger = logging.getLogger(__name__)
@@ -302,7 +303,17 @@ async def handle_admin_text(message: types.Message) -> None:
         "добавь слот", "добавь день",
     ]
     if not any(ind in text.lower() for ind in cmd_indicators):
-        return  # Nothing matched
+        # 4. Fallback: AI chat with Groq
+        logger.info('[admin_text] AI chat fallback: %s', text[:100])
+        status_msg = await message.reply('...', parse_mode='HTML')
+        reply = await ask_groq(admin_id, text)
+        if len(reply) > 4000:
+            await status_msg.delete()
+            for i in range(0, len(reply), 4000):
+                await message.answer(reply[i:i+4000])
+        else:
+            await status_msg.edit_text(reply)
+        return
 
     logger.info("[admin_text] Voice command from admin %d: %s", admin_id, text[:100])
 
