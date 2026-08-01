@@ -11,3 +11,4 @@ pydantic-settings
 websockets
 httpx
 groq
+cryptography
