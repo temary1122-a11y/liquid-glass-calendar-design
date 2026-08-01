@@ -2,15 +2,13 @@
 aiogram 3.x bot setup.
 
 Exports:
-  bot  вЂ” Bot instance
-  dp   вЂ” Dispatcher instance
+  bot  — Bot instance
+  dp   — Dispatcher instance
 
 Used by main.py to:
   1. Register webhook on startup
   2. Feed updates from POST /webhook
 """
-
-import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -20,8 +18,7 @@ from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from bot.handlers.ai_chat import router as ai_chat_router
 from bot.handlers.common import router as common_router
-
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+from config import BOT_TOKEN
 
 # ---------------------------------------------------------------------------
 # Instantiate bot and dispatcher (singleton)
@@ -45,13 +42,12 @@ dp.include_router(common_router)
 
 
 async def set_bot_commands():
-    """РЈСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ РєРѕРјР°РЅРґС‹ Р±РѕС‚Р° РґР»СЏ РјРµРЅСЋ."""
+    """Устанавливает команды бота для меню."""
     commands = [
-        BotCommand(command="start", description="рџ“… Р—Р°РїРёСЃР°С‚СЊСЃСЏ"),
-        BotCommand(command="mybooking", description="рџ“‹ РњРѕСЏ Р·Р°РїРёСЃСЊ"),
-        BotCommand(command="cancel", description="вќЊ РћС‚РјРµРЅРёС‚СЊ Р·Р°РїРёСЃСЊ"),
-        BotCommand(command="help", description="вќ“ РџРѕРјРѕС‰СЊ"),
+        BotCommand(command="start", description="📅 Записаться"),
+        BotCommand(command="mybooking", description="📋 Моя запись"),
+        BotCommand(command="cancel", description="❌ Отменить запись"),
+        BotCommand(command="help", description="❓ Помощь"),
     ]
     
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
-
