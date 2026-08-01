@@ -31,9 +31,9 @@ bot = Bot(
 
 dp = Dispatcher(storage=MemoryStorage())
 
-# Register routers
-dp.include_router(ai_chat_router)
+# Register routers — order matters! common_router FIRST so its /start, /cancel etc. are matched before ai_chat catch-all
 dp.include_router(common_router)
+dp.include_router(ai_chat_router)
 
 
 # ---------------------------------------------------------------------------
