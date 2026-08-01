@@ -5,14 +5,8 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    raise ValueError("РљР РРўРР§Р•РЎРљРђРЇ РћРЁРР‘РљРђ: РџРµСЂРµРјРµРЅРЅР°СЏ РѕРєСЂСѓР¶РµРЅРёСЏ DATABASE_URL РЅРµ Р·Р°РґР°РЅР°! РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє Р‘Р” РЅРµРІРѕР·РјРѕР¶РЅРѕ.")
-
-# РЈР±РёСЂР°РµРј СЃР»СѓС‡Р°Р№РЅС‹Рµ РїСЂРѕР±РµР»С‹, РєРѕС‚РѕСЂС‹Рµ РјРѕРіР»Рё РїРѕСЏРІРёС‚СЊСЃСЏ РїСЂРё РєРѕРїРёСЂРѕРІР°РЅРёРё РІ Render
-DATABASE_URL = DATABASE_URL.strip()
+from config import DATABASE_URL
+from utils.crypto import decrypt_phone, encrypt_phone
 
 # Render РїСЂРµРґРѕСЃС‚Р°РІР»СЏРµС‚ СЃС‚СЂРѕРєСѓ postgres://, Р° SQLAlchemy С‚СЂРµР±СѓРµС‚ postgresql://
 if DATABASE_URL.startswith("postgres://"):
@@ -59,7 +53,7 @@ class Booking(Base):
     user_id = Column(BigInteger, nullable=True)
     username = Column(String(255), nullable=True)
     client_name = Column(String(255), nullable=False)
-    phone = Column(String(20), nullable=True)
+    phone = Column(Text, nullable=True)  # encrypted with Fernet, prefixed 'enc:' when encrypted
     day_date = Column(String(10), nullable=False)  # YYYY-MM-DD (Supabase: direct field)
     slot_time = Column(String(5), nullable=False)  # HH:MM (Supabase: direct field)
     status = Column(String(20), default="pending")  # pending, confirmed, cancelled, completed
@@ -69,6 +63,7 @@ class Booking(Base):
     cancel_reason = Column(Text, nullable=True)  # renamed from cancellation_reason
     cancelled_at = Column(String, nullable=True)  # ISO format string (Supabase: text)
     service_id = Column(String(50), nullable=True)  # NEW field (Supabase has it)
+    reminder_sent = Column(Integer, default=0)  # 0 = not sent, 1 = reminder already sent
 
     # Relationship to TimeSlot (via day_date and slot_time)
     slot = relationship(
@@ -82,17 +77,6 @@ class Booking(Base):
         Index("idx_bookings_user_id", "user_id"),
         Index("idx_bookings_status", "status"),
     )
-
-
-
-class AiConversation(Base):
-    __tablename__ = "ai_conversations"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(BigInteger, nullable=False, index=True)
-    role = Column(String(20), nullable=False)
-    content = Column(Text, nullable=False)
-    created_at = Column(String, nullable=False)
-
 
 
 class AiConversation(Base):
